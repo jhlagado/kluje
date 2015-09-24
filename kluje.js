@@ -15,6 +15,9 @@
 
 }(this, function(lib) {
     
+    var x = new Symbol('x');
+    var y = String(x)
+    
     lib.name = 'kluje';
     lib.version = '0.0.0';
     
@@ -35,6 +38,56 @@
     var sym, globalEnv, quotes, EOF, macrotable;
     
     var output = console;
+    
+    function SyntaxError(msg) {
+        this.msg = 'SyntaxError: ' + msg;
+        output.error(msg);
+    }
+    
+    function RuntimeError(msg) {
+        this.msg = 'RuntimeError: ' + msg;
+        output.error(msg);
+    }
+    
+    function RuntimeWarning(msg) {
+        this.msg = 'RuntimeWarning: ' + msg;
+        output.warn(msg);
+    }
+
+    //Vector
+    function Vector() {
+        Array.prototype.push.apply(this, arguments);
+    }
+    Vector.prototype = Object.create(Array.prototype);
+    Vector.prototype.toArray = function() {
+        return Array.prototype.concat.apply([], this);
+    }
+
+    //Keyword
+    function Keyword(s) {
+        this.s = s.valueOf();
+    }
+    Keyword.prototype = {
+        toString: function() {
+            return ':' + this.s;
+        },
+        valueOf: function() {
+            return this.s;
+        },
+    };
+
+    //Symbol
+    function Symbol(s) {
+        this.s = s.valueOf();
+    }
+    Symbol.prototype = {
+        toString: function() {
+            return this.s;
+        },
+        valueOf: function() {
+            return this.s;
+        },
+    };
     
     initFunk();
     initSymbols();
@@ -236,7 +289,7 @@
         } 
         else if (first(x) === sym.keyword) { // (quote exp)
             require(x, length(x) == 2)
-            require(x, issymbol(x[1]) || isstring(x[1]), 'can set! only a symbol');
+            require(x, issymbol(x[1]) || isstring(x[1]), 'only symbols and strings can be keywords');
             return x;
         } 
         else if (first(x) === sym.if) {
@@ -344,8 +397,9 @@
         else
             return [sym.cons, expand_quasiquote(first(x)), expand_quasiquote(rest(x))]
     }
-        
+
     ////
+    
     
     function initSymbols() {
         sym = {};
@@ -531,25 +585,12 @@
     
     function createSym(s) {
         if (!(s in sym)) {
-            var sy = new String(s);
-            sy.type = 'symbol';
+            var sy = new Symbol(s);
             sym[s] = sy;
         }
         return sym[s];
     }
     
-    function issymbol(obj) {
-        return obj && obj.constructor == String && obj.type == 'symbol';
-    }
-    
-    function isvector(x){
-        return x instanceof Vector;
-    }
-
-    function iskeyword(x){
-        return x instanceof Keyword;
-    }
-
     function createEnv(params, args, outer) {
         var env = {
             __outer: outer,
@@ -593,50 +634,28 @@
         assign(env, dict);
     }
     
-    function SyntaxError(msg) {
-        this.msg = 'SyntaxError: ' + msg;
-        output.error(msg);
+    ////
+    
+    function issymbol(obj) {
+        return obj instanceof Symbol;
     }
     
-    function RuntimeError(msg) {
-        this.msg = 'RuntimeError: ' + msg;
-        output.error(msg);
+    function isvector(x) {
+        return x instanceof Vector;
     }
     
-    function RuntimeWarning(msg) {
-        this.msg = 'RuntimeWarning: ' + msg;
-        output.warn(msg);
+    function iskeyword(x) {
+        return x instanceof Keyword;
     }
     
-    //Vector
-    function Vector() {
-        Array.prototype.push.apply(this, arguments);
-    }
-    Vector.prototype = Object.create(Array.prototype);
-    Vector.prototype.toArray = function(){
-        return Array.prototype.concat.apply([], this);
-    }
-
-    //Keyword
-    function Keyword(s) {
-        this.s = s.valueOf();
-    }
-    Keyword.prototype = {
-        toString: function() {
-          return ':' + this.s;
-        },
-        valueOf: function() {
-          return this.s;
-        },
-    };
-
-
     function tostring(x) {
         if (x === true)
             return 'true'
         else if (x === false)
             return 'false'
         else if (iskeyword(x))
+            return String(x)
+        else if (issymbol(x))
             return String(x)
         else if (isNaN(x)) {
             if (isstring(x) && !x.type)
@@ -646,9 +665,9 @@
             else if (x instanceof Vector)
                 return '[' + map(x, tostring).join(' ') + ']'
             else if (isobject(x))
-                return '{' + map(funk.keys(x), function(key){
+                return '{' + map(funk.keys(x), function(key) {
                     var value = x[key];
-                    return String(atom(key)) + ' ' + tostring(value); 
+                    return String(atom(key)) + ' ' + tostring(value);
                 }).join(' ') + '}'
             else
                 return String(x);
