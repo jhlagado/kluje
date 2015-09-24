@@ -22,15 +22,15 @@
     lib.run = run;
     lib.parse = parse;
     lib.evaluate = evaluate;
-    lib.resolve = resolve;
     
     lib.tostring = tostring;
     lib.createSym = createSym;
     lib.issymbol = issymbol;
+    lib.isvector = isvector;
+    lib.iskeyword = iskeyword;
     
     lib.SyntaxError = SyntaxError;
     lib.RuntimeError = RuntimeError;
-    lib.Vector = Vector;
     
     var sym, globalEnv, quotes, EOF, macrotable;
     
@@ -52,7 +52,7 @@
         var s = expression; //.replace(/\n/g, ' '); //strip \n
         var p = parse(s);
         var e = evaluate(p);
-        return resolve(e);
+        return e;
     }
     
     function parse(s) {
@@ -101,7 +101,8 @@
                 var ret1 = reduce(ret, function(acc, item) {
                     kv.push(item);
                     if (kv.length == 2) {
-                        acc[kv[0]] = kv[1];
+                        var key = kv[0];
+                        acc[String(key)] = kv[1];
                         kv.length = 0;
                     }
                     return acc;
@@ -142,7 +143,7 @@
         else if (!isNaN(token))
             return Number(token); //Cast to number
         else if (token[0] == ':')
-            return createKeyword(token);
+            return new Keyword(token.slice(1));
         else
             return createSym(token);
     }
@@ -159,11 +160,15 @@
             
             if (issymbol(x)) // v reference
                 return envGet(env, x);
+            else if (iskeyword(x)) // v reference
+                return x;
             else if (!isarray(x)) // constant literal
                 return x
             
             else if (first(x) === sym.quote) // (quote exp)
                 return x[1];
+            else if (first(x) === sym.keyword) // (keyword exp)
+                return new Keyword(x[1]);
             else if (first(x) === sym.if) // (if test conseq alt)
                 x = evaluate(x[1], env) ? x[2] : x[3];
             else if (first(x) === sym.or) // (if test conseq alt)
@@ -227,6 +232,11 @@
         } 
         else if (first(x) === sym.quote) { // (quote exp)
             require(x, length(x) == 2)
+            return x;
+        } 
+        else if (first(x) === sym.keyword) { // (quote exp)
+            require(x, length(x) == 2)
+            require(x, issymbol(x[1]) || isstring(x[1]), 'can set! only a symbol');
             return x;
         } 
         else if (first(x) === sym.if) {
@@ -334,32 +344,7 @@
         else
             return [sym.cons, expand_quasiquote(first(x)), expand_quasiquote(rest(x))]
     }
-    
-    function resolve(x) {
-        return (isLazy(x)) ? x.resolve() : x;
-    }
-    
-    function isLazy(x) {
-        return existy(x) && x.constructor == Lazy;
-    }
-    
-    function createLazy(arg, env) {
-        if (isLazy(arg))
-            return;
-        return new Lazy(arg, env);
-    }
-    
-    function Lazy(expr, env) {
-        this.resolve = function() {
-            return evaluate(expr, env);
-        }
-        this.expr = expr;
-    }
-    
-    function Fn(f) {
-        this.fn = f;
-    }
-
+        
     ////
     
     function initSymbols() {
@@ -544,16 +529,6 @@
         }
     }
     
-    function createKeyword(s) {
-        var kw = new String(s);
-        kw.type = 'keyword';
-        return kw;
-    }
-    
-    function iskeyword(obj) {
-        return obj && obj.constructor == String && obj.type == 'symbol';
-    }
-    
     function createSym(s) {
         if (!(s in sym)) {
             var sy = new String(s);
@@ -567,6 +542,14 @@
         return obj && obj.constructor == String && obj.type == 'symbol';
     }
     
+    function isvector(x){
+        return x instanceof Vector;
+    }
+
+    function iskeyword(x){
+        return x instanceof Keyword;
+    }
+
     function createEnv(params, args, outer) {
         var env = {
             __outer: outer,
@@ -625,6 +608,7 @@
         output.warn(msg);
     }
     
+    //Vector
     function Vector() {
         Array.prototype.push.apply(this, arguments);
     }
@@ -633,11 +617,27 @@
         return Array.prototype.concat.apply([], this);
     }
 
+    //Keyword
+    function Keyword(s) {
+        this.s = s.valueOf();
+    }
+    Keyword.prototype = {
+        toString: function() {
+          return ':' + this.s;
+        },
+        valueOf: function() {
+          return this.s;
+        },
+    };
+
+
     function tostring(x) {
         if (x === true)
             return 'true'
         else if (x === false)
             return 'false'
+        else if (iskeyword(x))
+            return String(x)
         else if (isNaN(x)) {
             if (isstring(x) && !x.type)
                 return '"' + x + '"';
@@ -648,7 +648,7 @@
             else if (isobject(x))
                 return '{' + map(funk.keys(x), function(key){
                     var value = x[key];
-                    return tostring(key) + ' ' + tostring(value); 
+                    return String(atom(key)) + ' ' + tostring(value); 
                 }).join(' ') + '}'
             else
                 return String(x);

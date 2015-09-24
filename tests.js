@@ -6,6 +6,25 @@ angular.module("klujeTests", [])
     return {
         tests: [
             {
+                test: '{:a 2}', 
+                expect: function(data, result){
+                    return (result instanceof Object) && 
+                    funk.isequal(result, {':a':2})
+                }
+            }, 
+            {
+                test: ":xyz",
+                expect: function(data, result){
+                    return kluje.iskeyword(result) && result == 'xyz';
+                }
+            }, 
+            {
+                test: "(keyword xyz)",
+                expect: function(data, result){
+                    return kluje.iskeyword(result) && result == 'xyz';
+                }
+            }, 
+            {
                 test: '{"a" 2}', 
                 expect: function(data, result){
                     return (result instanceof Object) && 
@@ -15,7 +34,7 @@ angular.module("klujeTests", [])
             {
                 test: "[1 2]", 
                 expect: function(data, result){
-                    return (result instanceof kluje.Vector) && 
+                    return (kluje.isvector(result)) && 
                     funk.isequal(result.toArray(), [1,2])
                 }
             }, 
