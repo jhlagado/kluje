@@ -1,4 +1,4 @@
-angular.module("lispy2App", [])
+angular.module("klujeApp", [])
 
 .controller('Main', function($scope) {
     var lines = localStorage['lines'];
@@ -8,7 +8,7 @@ angular.module("lispy2App", [])
         if (!$scope.command)
             return;
         try {
-            var result = lispy2.run($scope.command);
+            var result = kluje.run($scope.command);
         } 
         catch (e) {
             var error = e.msg;
@@ -16,7 +16,7 @@ angular.module("lispy2App", [])
         
         $scope.lines.push({
             command: $scope.command,
-            result: lispy2.tostring(result),
+            result: kluje.tostring(result),
             error: error,
         });
         if ($scope.lines.length > 1000)

@@ -65,29 +65,29 @@
 
     //Keyword
     function Keyword(s) {
+        String.call(this, s);
         this.s = s.valueOf();
     }
-    Keyword.prototype = {
-        toString: function() {
-            return ':' + this.s;
-        },
-        valueOf: function() {
-            return this.s;
-        },
-    };
+    Keyword.prototype = Object.create(String.prototype);
+    Keyword.prototype.toString = function() {
+        return ':' + this.s;
+    }
+    Keyword.prototype.valueOf = function() {
+        return this.s;
+    }
 
     //Symbol
     function Symbol(s) {
+        String.call(this, s);
         this.s = s.valueOf();
     }
-    Symbol.prototype = {
-        toString: function() {
-            return this.s;
-        },
-        valueOf: function() {
-            return this.s;
-        },
-    };
+    Symbol.prototype = Object.create(String.prototype);
+    Symbol.prototype.toString = function() {
+        return this.s;
+    }
+    Symbol.prototype.valueOf = function() {
+        return this.s;
+    }
     
     initFunk();
     initSymbols();
@@ -124,7 +124,7 @@
                 if (line == undefined)
                     return EOF;
                 // see https://regex101.com/#javascript
-                //                 var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
+                // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
                 var regex = /[\s,]*(~@|[(){}[\]'`~]|'(?:[\\].|[^\\'])*'|;.*|[^\s,(){}[\]`~;]*)(.*)/g;
                 var list = regex.exec(line);
                 var token = list[1];
@@ -168,8 +168,15 @@
                 return [quotes[token], read(tokzer)]
             else if (token == EOF)
                 throw new SyntaxError('unexpected EOF in list')
-            else
-                return atom(token)
+            else {
+                var x = atom(token);
+                if (issymbol(x)) {
+                    var s = String(x);
+                    if (s.slice(-1) == '#')
+                        return [sym.autogensym, s.slice(0, -1)]
+                }
+                return x;
+            }
         }
         
         function readBrackets(array, closer) {
@@ -213,8 +220,10 @@
             
             if (issymbol(x)) // v reference
                 return envGet(env, x);
-            else if (iskeyword(x)) // v reference
-                return x;
+            //             else if (iskeyword(x)) // keyword
+            //                 return x;
+            //             else if (isvector(x)) // vector
+            //                 return x
             else if (!isarray(x)) // constant literal
                 return x
             
@@ -361,9 +370,9 @@
             var exp = length(body) == 1 ? first(body) : cons(sym.begin, body);
             return [sym.lambda, vars, expand(exp)]
         } 
-        else if (first(x) === sym.quasiquote) { // `x => expand_quasiquote(x)
+        else if (first(x) === sym.syntaxquote) { // `x => expandSyntaxQuote(x)
             require(x, length(x) == 2)
-            return expand_quasiquote(x[1])
+            return expandSyntaxQuote(x[1])
         } 
         else if (issymbol(first(x)) && (first(x) in macrotable)) {
             return expand(macrotable[first(x)].apply(null, rest(x)), toplevel) // (m arg...) 
@@ -380,43 +389,59 @@
             throw new SyntaxError(tostring(x) + ': ' + msg);
     }
     
-    function expand_quasiquote(x) {
-        // Expand `x => 'x; `,x => x; `(,@x y) => (append x y) """
-        if (!ispair(x))
-            return [sym.quote, x]
+    function expandSyntaxQuote(x, gensyms) {
+        // Expand `x => 'x; `~x => x; `(~@x y) => (append x y) """
         
-        require(x, first(x) !== sym.unquotesplicing, "can't splice here")
+        if (!ispair(x)) {
+            return [sym.quote, x];
+        }
+        require(x, first(x) !== sym.unquotesplice, "can't splice here")
         if (first(x) == sym.unquote) {
             require(x, length(x) == 2);
             return x[1];
         } 
-        else if (ispair(first(x)) && first(first(x)) == sym.unquotesplicing) {
-            require(first(x), length(first(x)) == 2)
-            return [sym.append, first(x)[1], expand_quasiquote(rest(x))]
+        else if (first(x) == sym.autogensym) {
+            require(x, length(x) == 2);
+            var pref = x[1];
+            var gs = gensyms[pref];
+            if (!gs) {
+                var gs0 = pref + (Math.random() * 1001 | 0);
+                gs = new Symbol(gs0);
+                gensyms[pref] = gs;
+            }
+            return [sym.quote, gs];
         } 
-        else
-            return [sym.cons, expand_quasiquote(first(x)), expand_quasiquote(rest(x))]
+        else if (ispair(first(x)) && first(first(x)) == sym.unquotesplice) {
+            require(first(x), length(first(x)) == 2)
+            return [sym.append, first(x)[1], expandSyntaxQuote(rest(x))]
+        } 
+        else {
+            if (!gensyms)
+                gensyms = {};
+            var ret = [sym.cons, expandSyntaxQuote(first(x), gensyms), expandSyntaxQuote(rest(x), gensyms)]
+            return ret;
+        }
     }
 
     ////
-    
     
     function initSymbols() {
         sym = {};
         
         EOF = createSym('EOF');
         
-        ['quote', 'if', 'or', 'set!', 'define', 'lambda', 'begin', 'define-macro', 'quasiquote', 'unquote', 
-            'unquote-splicing', 'append', 'cons', 'let', 'fn']
+        ['quote', 'if', 'or', 'set!', 'define', 'lambda', 'begin', 'define-macro', 
+            'syntaxquote', 'unquote', 'unquotesplice', 'autogensym', 
+            'append', 'cons', 'let', 'fn', 'list']
         .forEach(function(s) {
             createSym(s);
         });
         
         quotes = {
             '\'': sym.quote,
-            '`': sym.quasiquote,
+            '`': sym.syntaxquote,
             '~': sym.unquote,
-            '~@': sym.unquotesplicing,
+            '~@': sym.unquotesplice,
         }
         
         each(['fn'], function(s) {
@@ -461,9 +486,6 @@
             '<=': function(a, b) {
                 return a <= b;
             },
-            //             'equal?': function(a, b) {
-            //                 return a == b;
-            //             },
             '=': equal,
             'eq?': equal,
             'length': function(a) {
@@ -476,8 +498,11 @@
             'rest': function(a) {
                 return rest(a);
             },
-            'append': function(a, b) {
-                return a.concat(b);
+            'append': function() {
+                var args = argarray(arguments);
+                var a = first(args);
+                var ret = Array.prototype.concat.apply(a, rest(args));
+                return ret;
             },
             'list': function() {
                 return argarray(arguments);
@@ -533,22 +558,22 @@
     function initMacros() {
         macrotable = {};
         macrotable['let'] = _let;
-        evaluate(parse(
-        '(begin                                                   \n' + 
-        '(define-macro and (lambda args                           \n' + 
-        '   (if (null? args) true                                   \n' + 
-        '       (if (= (length args) 1) (first args)                \n' + 
-        '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
-        ')                                                        \n'
-        ));
-        evaluate(parse(
-        '(begin                                                   \n' + 
-        '(define-macro or (lambda args                           \n' + 
-        '   (if (null? args) true                                   \n' + 
-        '       (if (= (length args) 1) (first args)                \n' + 
-        '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
-        ')                                                        \n'
-        ));
+            evaluate(parse(
+            '(begin                                                   \n' + 
+            '(define-macro and (lambda args                           \n' + 
+            '   (if (null? args) true                                   \n' + 
+            '       (if (= (length args) 1) (first args)                \n' + 
+            '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
+            ')                                                        \n'
+            ));
+            evaluate(parse(
+            '(begin                                                   \n' + 
+            '(define-macro or (lambda args                           \n' + 
+            '   (if (null? args) true                                   \n' + 
+            '       (if (= (length args) 1) (first args)                \n' + 
+            '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
+            ')                                                        \n'
+            ));
     }
     
     function _let() {
@@ -633,7 +658,7 @@
     function envAssign(env, dict) {
         assign(env, dict);
     }
-    
+
     ////
     
     function issymbol(obj) {
@@ -660,10 +685,10 @@
         else if (isNaN(x)) {
             if (isstring(x) && !x.type)
                 return '"' + x + '"';
+            else if (isvector(x))
+                return '[' + map(x, tostring).join(' ') + ']'
             else if (isarray(x))
                 return '(' + map(x, tostring).join(' ') + ')'
-            else if (x instanceof Vector)
-                return '[' + map(x, tostring).join(' ') + ']'
             else if (isobject(x))
                 return '{' + map(funk.keys(x), function(key) {
                     var value = x[key];
@@ -677,9 +702,10 @@
         }
     }
     
-    var contains, first, keys, rest, each, pick, zipobject, unzip, argarray, length, assign, map, reduce, isarray, 
-    isempty, isobject, isstring, isboolean, isfunction, filter, all, ispair, 
-    cons, existy, startswith, values;
+    var all, argarray, assign, cons, contains, each, existy, 
+    filter, first, isarray, isboolean, iscoll, isempty, isfunction, 
+    isobject, ispair, isstring, keys, length, map, 
+    pick, reduce, rest, startswith, unzip, values, zipobject;
     
     function initFunk() {
         all = funk.all;
@@ -693,6 +719,7 @@
         first = funk.first;
         isarray = funk.isarray;
         isboolean = funk.isboolean;
+        iscoll = funk.iscoll;
         isempty = funk.isempty;
         isfunction = funk.isfunction;
         isobject = funk.isobject;

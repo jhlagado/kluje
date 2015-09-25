@@ -6,6 +6,45 @@ angular.module("klujeTests", [])
     return {
         tests: [
             {
+                test: '(quote "x")', 
+                expect: function(data, result){
+                    return (result[1] == result[3]); 
+                }
+            }, 
+            {
+                test: '`(let ((x# 1)) (= x# 1))', 
+                expect: function(data, result){
+                    return result; 
+                }
+            }, 
+            {
+                test: '`(1 x# 4 x#)', 
+                expect: function(data, result){
+                    return (result[1] == result[3]); 
+                }
+            }, 
+            {
+                test: '`(1 ~@(list 2 3) 4)', 
+                expect: function(data, result){
+                    return (result instanceof Array) && 
+                    funk.isequal(result, [1,2,3,4])
+                }
+            }, 
+            {
+                test: '`(1 ~2 3)', 
+                expect: function(data, result){
+                    return (result instanceof Array) && 
+                    funk.isequal(result, [1,2,3])
+                }
+            }, 
+            {
+                test: '`(1 2 3)', 
+                expect: function(data, result){
+                    return (result instanceof Array) && 
+                    funk.isequal(result, [1,2,3])
+                }
+            }, 
+            {
                 test: '{:a 2}', 
                 expect: function(data, result){
                     return (result instanceof Object) && 

@@ -30,6 +30,7 @@
     lib.getkeys = getkeys;
     lib.isarray = isarray;
     lib.isboolean = isboolean;
+    lib.iscoll = iscoll;
     lib.isempty = isempty;
     lib.isequal = isequal;
     lib.isfunction = isfunction;
@@ -43,8 +44,8 @@
     lib.reduce = reduce;
     lib.rest = rest;
     lib.startswith = startswith;
-    lib.values = values;
     lib.unzip = unzip;
+    lib.values = values;
     lib.zipobject = zipobject;
     
     function all(x, f) {
@@ -112,6 +113,11 @@
         return Object.keys(a);
     }
     
+    function iscoll(x) {
+        var isargs = x.constructor == arguments.constructor;
+        return isargs || (x instanceof Array);
+    }
+
     function isarray(x) {
         return x && Array.isArray(x)
     }
