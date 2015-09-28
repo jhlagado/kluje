@@ -4,7 +4,8 @@
     
     if (typeof exports === 'object' && exports) {
         factory(exports); // CommonJS
-    } else {
+    } 
+    else {
         var lib = {};
         factory(lib);
         if (typeof define === 'function' && define.amd)
@@ -114,8 +115,255 @@
         return expand(read(tokzer(s)), true);
     }
     
+    function evaluate(x, env) {
+        
+        if (!existy(x))
+            return x;
+        
+        if (!env)
+            env = globalEnv;
+        
+        while (true) {
+            
+            if (issymbol(x)) // v reference
+                return envGet(env, x);
+            else if (!isnonemptylist(x)) // constant literal
+                return x
+            
+            else if (x[0] === sym.quote) // (quote exp)
+                return x[1];
+            else if (x[0] === sym.keyword) // (keyword exp)
+                return new Keyword(x[1]);
+            else if (x[0] === sym.if) // (if test conseq alt)
+                x = evaluate(x[1], env) ? x[2] : x[3];
+            else if (x[0] === sym.or) // (if test conseq alt)
+                x = evaluate(x[1], env) || evaluate(x[2], env);
+            else if (x[0] === sym['set!']) { // (set! var exp)
+                var v = x[1];
+                envSet(env, v, evaluate(x[2], env));
+                return;
+            } 
+            else if (x[0] === sym.define) { // (define var exp)
+                var v = x[1];
+                envDefine(env, v, evaluate(x[2], env));
+                return;
+            } 
+            else if (x[0] === sym.lambda) { // (fn (var*) exp)
+                var vars = x[1];
+                var exp = x[2];
+                return function() {
+                    return evaluate(exp, createEnv(vars, argarray(arguments), env));
+                }
+            } 
+            else if (x[0] === sym.fn) { // (lambda (var*) exp)
+                var config = x[1];
+                var f = function() {
+                    var numargs = arguments.length;
+                    var arity = reduce(config, function(acc, item) {
+                        if (!acc && item.variadic)
+                            return item;
+                        else if (numargs == item.vars.length)
+                            return item;
+                        return acc;
+                    }, null);
+
+                    var args;
+                    if (!arity) {
+                        throw new RuntimeError(isstring(x) + 'number of arguments mismatch')
+                    } 
+                    else {
+                        var args = argarray(arguments);
+                        if (arity.variadic) {
+                            var vl = arity.vars.length - 1;
+                            args = args.slice(0, vl).concat([args.slice(vl)]);
+                        } 
+                    }
+                    return evaluate(arity.exp, createEnv(arity.vars, args, env));
+                }
+                return f;
+            } 
+            else if (x[0] === sym.do) { // (do exp+)
+                x.slice(1, -1).forEach(function(exp) {
+                    evaluate(exp, env)
+                });
+                x = x.slice(-1)[0];
+            } 
+            else if (x instanceof Vector) {
+                return x;
+            } 
+            else { // (f exp*)
+                var f = evaluate(x[0], env);
+                if (!isfunction(f)) {
+                    throw new RuntimeError(f + ' is not a function.')
+                }
+                var argslist = rest(x);
+                var args = map(argslist, function(arg, index) {
+                    return evaluate(arg, env);
+                });
+                return f.apply(env, args);
+            }
+        }
+    }
+    
+    function expand(x, toplevel) {
+        if (!existy(toplevel))
+            toplevel = false;
+        
+        if (!isnonemptylist(x)) { // constant => unchanged
+            return x;
+        }
+        require(x, !isempty(x)) // () => Error
+        if (x[0] === sym.quote) { // (quote exp)
+            require(x, length(x) == 2)
+            return x;
+        } 
+        else if (x[0] === sym.if) {
+            if (length(x) == 3) {
+                x.length = 4
+            } // (if t c) => (if t c None)
+            require(x, length(x) == 4)
+            return map(x, expand)
+        } 
+        else if (x[0] === sym.or) {
+            require(x, length(x) == 3)
+            return map(x, expand)
+        } 
+        else if (x[0] === sym['set!']) {
+            require(x, length(x) == 3);
+            require(x, issymbol(x[1]), 'can set! only a symbol');
+            return [sym['set!'], x[1], expand(x[2])]
+        } 
+        else if (x[0] === sym.define || x[0] === sym['define-macro']) {
+            require(x, length(x) >= 3)
+            var def = x[0];
+            var v = x[1];
+            var body = x.slice(2);
+            if (islist(v) && v) { // (define (f args) body)
+                var f = v[0];
+                var args = rest(v); //  => (define f (lambda (args) body))
+                return expand([def, f, [sym.lambda, args].concat(body)])
+            } 
+            else {
+                require(x, length(x) == 3) // (define non-var/list exp) => Error
+                require(x, issymbol(v), 'can define only a symbol')
+                var exp = expand(x[2])
+                if (def == sym['define-macro']) {
+                    require(x, toplevel, 'define-macro only allowed at top level');
+                    var proc = evaluate(exp);
+                    require(x, isfunction(proc), 'macro must be a procedure');
+                    macrotable[v] = proc; // (define-macro v proc)
+                    return; //  => None; add v:proc to macro_table
+                }
+                return [sym.define, v, exp]
+            }
+        } 
+        else if (x[0] === sym.do) {
+            if (length(x) == 1)
+                return undefined; // (do) => None
+            else {
+                return map(x, function(xi) {
+                    return expand(xi, toplevel)
+                });
+            }
+        } 
+        else if (x[0] === sym.lambda) { // (lambda (x) e1 e2) 
+            require(x, length(x) >= 3) //  => (lambda (x) (do e1 e2))
+            var vars = x[1];
+            var body = x.slice(2);
+            require(x, issymbol(vars) || all(map(vars, function(v) {
+                return issymbol(v);
+            })), 'illegal lambda argument list')
+            var exp = length(body) == 1 ? body[0] : cons(sym.do, body);
+            return [sym.lambda, vars, expand(exp)]
+        } 
+        else if (x[0] === sym.fn) { // (fn (x) e1 e2) 
+            return expandFn(x)
+        } 
+        else if (x[0] === sym.syntaxquote) { // `x => expandSyntaxQuote(x)
+            require(x, length(x) == 2)
+            return expandSyntaxQuote(x[1])
+        } 
+        else if (issymbol(x[0]) && (x[0] in macrotable)) {
+            return expand(macrotable[x[0]].apply(null, rest(x)), toplevel) // (m arg...) 
+        } 
+        else { //        => macroexpand if m isa macro
+            return map(x, expand) // (f arg...) => expand each
+        }
+    }
+    
+    function expandFn(x) {
+        
+        var list;
+        require(x[1], islist(x[1]) || isvector(x[1]), 'expected list or vector')
+        if (isvector(x[1])) {
+            require(x, length(x) >= 3);
+            list = [rest(x)]
+        } 
+        else {
+            require(x, length(x) >= 2);
+            list = x[1];
+        }
+        var config = map(list, function(item) {
+            var vars = item[0];
+            require(x, all(vars, function(v) {
+                return issymbol(v);
+            }), 'expected symbols in args list');
+            
+            var body = item.slice(1);
+            var exp = expand(length(body) == 1 ? body[0] : cons(sym.do, body));
+            var ret = vars.slice(-2, -1)[0] == '&' ? {
+                variadic: true,
+                //throw away splice return and return altered vars instead
+                vars: (vars.splice(-2, 1), vars),  
+                exp: exp,
+            } : {
+                vars: vars,
+                exp: exp,
+            }
+            return ret;
+        });
+        return [x[0], config]
+    }
+    
+    function expandSyntaxQuote(x, gensyms) {
+        // Expand `x => 'x; `~x => x; `(~@x y) => (append x y) """
+        
+        if (!isnonemptylist(x)) {
+            return [sym.quote, x];
+        }
+        require(x, x[0] !== sym.unquotesplice, "can't splice here")
+        if (x[0] == sym.unquote) {
+            require(x, length(x) == 2);
+            return x[1];
+        } 
+        else if (x[0] == sym.autogensym) {
+            require(x, length(x) == 2);
+            var pref = x[1];
+            var gs = gensyms[pref];
+            if (!gs) {
+                var gs0 = pref + (Math.random() * 1001 | 0);
+                gs = new Symbol(gs0);
+                gensyms[pref] = gs;
+            }
+            return [sym.quote, gs];
+        } 
+        else if (isnonemptylist(x[0]) && x[0][0] == sym.unquotesplice) {
+            require(x[0], length(x[0]) == 2)
+            return [sym.append, x[0][1], expandSyntaxQuote(rest(x))]
+        } 
+        else {
+            if (!gensyms)
+                gensyms = {};
+            var ret = [sym.cons, expandSyntaxQuote(x[0], gensyms), expandSyntaxQuote(rest(x), gensyms)]
+            return ret;
+        }
+    }
+
+    ////
+    
     function tokzer(s) {
-        var lines = s.split('\n');
+        //var lines = s.split('\n');
+        var lines = [s];
         var line = '';
         return function() {
             while (true) {
@@ -125,7 +373,8 @@
                     return EOF;
                 // see https://regex101.com/#javascript
                 // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
-                var regex = /[\s,]*(~@|[(){}[\]'`~]|'(?:[\\].|[^\\'])*'|;.*|[^\s,(){}[\]`~;]*)(.*)/g;
+                
+                var regex = /[\s,]*("[^"]*"|~@|[(){}[\]'`~]|'(?:[\\].|[^\\'])*'|;.*|[^\s,(){}[\]`~;"]*)(.*)/g;
                 var list = regex.exec(line);
                 var token = list[1];
                 line = list[2];
@@ -135,7 +384,6 @@
         }
     }
     
-    
     function read(tokzer) {
         
         function readAhead(token) {
@@ -144,6 +392,10 @@
                 ret = readBrackets([], ')');
                 return ret;
             } 
+//             else if (token == '"') {
+//                 ret = readBrackets([], '"');
+//                 return ret.join(' ');
+//             } 
             else if (token == '[') {
                 ret = readBrackets(new Vector(), ']');
                 return ret;
@@ -208,219 +460,11 @@
             return createSym(token);
     }
     
-    function evaluate(x, env) {
-        
-        if (!existy(x))
-            return x;
-        
-        if (!env)
-            env = globalEnv;
-        
-        while (true) {
-            
-            if (issymbol(x)) // v reference
-                return envGet(env, x);
-            //             else if (iskeyword(x)) // keyword
-            //                 return x;
-            //             else if (isvector(x)) // vector
-            //                 return x
-            else if (!isarray(x)) // constant literal
-                return x
-            
-            else if (first(x) === sym.quote) // (quote exp)
-                return x[1];
-            else if (first(x) === sym.keyword) // (keyword exp)
-                return new Keyword(x[1]);
-            else if (first(x) === sym.if) // (if test conseq alt)
-                x = evaluate(x[1], env) ? x[2] : x[3];
-            else if (first(x) === sym.or) // (if test conseq alt)
-                x = evaluate(x[1], env) || evaluate(x[2], env);
-            else if (first(x) === sym['set!']) { // (set! var exp)
-                var v = x[1];
-                envSet(env, v, evaluate(x[2], env));
-                return;
-            } 
-            else if (first(x) === sym.define) { // (define var exp)
-                var v = x[1];
-                envDefine(env, v, evaluate(x[2], env));
-                return;
-            } 
-            
-            else if (first(x) === sym.lambda) { // (fn (var*) exp)
-                var vars = x[1];
-                var exp = x[2];
-                return function() {
-                    return evaluate(exp, createEnv(vars, argarray(arguments), env));
-                }
-            } 
-            else if (first(x) === sym.fn) { // (lambda (var*) exp)
-                var vars = x[1];
-                var exp = x[2];
-                var f = function() {
-                    return evaluate(exp, createEnv(vars, arguments, env));
-                }
-                return f;
-            } 
-            else if (first(x) === sym.begin) { // (begin exp+)
-                x.slice(1, -1).forEach(function(exp) {
-                    evaluate(exp, env)
-                });
-                x = first(x.slice(-1));
-            } 
-            else if (x instanceof Vector) {
-                return x;
-            } 
-            else { // (f exp*)
-                var f = evaluate(first(x), env);
-                if (!isfunction(f)) {
-                    throw new RuntimeError(f + ' is not a function.')
-                }
-                var argslist = rest(x);
-                var args = map(argslist, function(arg, index) {
-                    return evaluate(arg, env);
-                });
-                return f.apply(env, args);
-            }
-        }
-    }
-    
-    function expand(x, toplevel) {
-        if (!existy(toplevel))
-            toplevel = false;
-        
-        require(x, !isempty(x)) // () => Error
-        if (!isarray(x)) { // constant => unchanged
-            return x;
-        } 
-        else if (first(x) === sym.quote) { // (quote exp)
-            require(x, length(x) == 2)
-            return x;
-        } 
-        else if (first(x) === sym.keyword) { // (quote exp)
-            require(x, length(x) == 2)
-            require(x, issymbol(x[1]) || isstring(x[1]), 'only symbols and strings can be keywords');
-            return x;
-        } 
-        else if (first(x) === sym.if) {
-            if (length(x) == 3) {
-                x.length = 4
-            } // (if t c) => (if t c None)
-            require(x, length(x) == 4)
-            return map(x, expand)
-        } 
-        else if (first(x) === sym.or) {
-            require(x, length(x) == 3)
-            return map(x, expand)
-        } 
-        else if (first(x) === sym['set!']) {
-            require(x, length(x) == 3);
-            require(x, issymbol(x[1]), 'can set! only a symbol');
-            return [sym['set!'], x[1], expand(x[2])]
-        } 
-        else if (first(x) === sym.define || first(x) === sym['define-macro']) {
-            require(x, length(x) >= 3)
-            var def = first(x);
-            var v = x[1];
-            var body = x.slice(2);
-            if (isarray(v) && v) { // (define (f args) body)
-                var f = first(v);
-                var args = rest(v); //  => (define f (lambda (args) body))
-                return expand([def, f, [sym.lambda, args].concat(body)])
-            } 
-            else {
-                require(x, length(x) == 3) // (define non-var/list exp) => Error
-                require(x, issymbol(v), 'can define only a symbol')
-                var exp = expand(x[2])
-                if (def == sym['define-macro']) {
-                    require(x, toplevel, 'define-macro only allowed at top level');
-                    var proc = evaluate(exp);
-                    require(x, isfunction(proc), 'macro must be a procedure');
-                    macrotable[v] = proc; // (define-macro v proc)
-                    return; //  => None; add v:proc to macro_table
-                }
-                return [sym.define, v, exp]
-            }
-        } 
-        else if (first(x) === sym.begin) {
-            if (length(x) == 1)
-                return undefined; // (begin) => None
-            else {
-                return map(x, function(xi) {
-                    return expand(xi, toplevel)
-                });
-            }
-        } 
-        else if (first(x) === sym.fn) { // (fn (x) e1 e2) 
-            require(x, length(x) >= 3) //  => (fn (x) (begin e1 e2))
-            var vars = x[1];
-            var body = x.slice(2);
-            require(x, issymbol(vars) || all(map(vars, function(v) {
-                return issymbol(v);
-            })), 'illegal lambda argument list')
-            var exp = length(body) == 1 ? first(body) : cons(sym.begin, body);
-            return [first(x), vars, expand(exp)]
-        } 
-        else if (first(x) === sym.lambda) { // (lambda (x) e1 e2) 
-            require(x, length(x) >= 3) //  => (lambda (x) (begin e1 e2))
-            var vars = x[1];
-            var body = x.slice(2);
-            require(x, issymbol(vars) || all(map(vars, function(v) {
-                return issymbol(v);
-            })), 'illegal lambda argument list')
-            var exp = length(body) == 1 ? first(body) : cons(sym.begin, body);
-            return [sym.lambda, vars, expand(exp)]
-        } 
-        else if (first(x) === sym.syntaxquote) { // `x => expandSyntaxQuote(x)
-            require(x, length(x) == 2)
-            return expandSyntaxQuote(x[1])
-        } 
-        else if (issymbol(first(x)) && (first(x) in macrotable)) {
-            return expand(macrotable[first(x)].apply(null, rest(x)), toplevel) // (m arg...) 
-        } 
-        else { //        => macroexpand if m isa macro
-            return map(x, expand) // (f arg...) => expand each
-        }
-    }
-    
     function require(x, predicate, msg) {
         if (!existy(msg))
             msg = 'wrong length';
         if (!predicate)
             throw new SyntaxError(tostring(x) + ': ' + msg);
-    }
-    
-    function expandSyntaxQuote(x, gensyms) {
-        // Expand `x => 'x; `~x => x; `(~@x y) => (append x y) """
-        
-        if (!ispair(x)) {
-            return [sym.quote, x];
-        }
-        require(x, first(x) !== sym.unquotesplice, "can't splice here")
-        if (first(x) == sym.unquote) {
-            require(x, length(x) == 2);
-            return x[1];
-        } 
-        else if (first(x) == sym.autogensym) {
-            require(x, length(x) == 2);
-            var pref = x[1];
-            var gs = gensyms[pref];
-            if (!gs) {
-                var gs0 = pref + (Math.random() * 1001 | 0);
-                gs = new Symbol(gs0);
-                gensyms[pref] = gs;
-            }
-            return [sym.quote, gs];
-        } 
-        else if (ispair(first(x)) && first(first(x)) == sym.unquotesplice) {
-            require(first(x), length(first(x)) == 2)
-            return [sym.append, first(x)[1], expandSyntaxQuote(rest(x))]
-        } 
-        else {
-            if (!gensyms)
-                gensyms = {};
-            var ret = [sym.cons, expandSyntaxQuote(first(x), gensyms), expandSyntaxQuote(rest(x), gensyms)]
-            return ret;
-        }
     }
 
     ////
@@ -430,7 +474,7 @@
         
         EOF = createSym('EOF');
         
-        ['quote', 'if', 'or', 'set!', 'define', 'lambda', 'begin', 'define-macro', 
+        ['quote', 'if', 'or', 'set!', 'define', 'lambda', 'do', 'define-macro', 
             'syntaxquote', 'unquote', 'unquotesplice', 'autogensym', 
             'append', 'cons', 'let', 'fn', 'list']
         .forEach(function(s) {
@@ -500,15 +544,14 @@
             },
             'append': function() {
                 var args = argarray(arguments);
-                var a = first(args);
-                var ret = Array.prototype.concat.apply(a, rest(args));
+                var ret = Array.prototype.concat.apply(args[0], rest(args));
                 return ret;
             },
             'list': function() {
                 return argarray(arguments);
             },
             'list?': function(x) {
-                return isarray(x);
+                return islist(x);
             },
             'null?': function(x) {
                 return (!x || x.length === 0);
@@ -519,7 +562,7 @@
             'boolean?': function(x) {
                 return isboolean(x);
             },
-            'pair?': ispair,
+            'pair?': islist(x) && x.length > 1,
             'apply': function(proc, args) {
                 return proc.apply(null, args);
             },
@@ -558,35 +601,35 @@
     function initMacros() {
         macrotable = {};
         macrotable['let'] = _let;
-            evaluate(parse(
-            '(begin                                                   \n' + 
-            '(define-macro and (lambda args                           \n' + 
-            '   (if (null? args) true                                   \n' + 
-            '       (if (= (length args) 1) (first args)                \n' + 
-            '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
-            ')                                                        \n'
-            ));
-            evaluate(parse(
-            '(begin                                                   \n' + 
-            '(define-macro or (lambda args                           \n' + 
-            '   (if (null? args) true                                   \n' + 
-            '       (if (= (length args) 1) (first args)                \n' + 
-            '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
-            ')                                                        \n'
-            ));
+//         evaluate(parse(
+//         '(do                                                   \n' + 
+//         '(define-macro and (lambda args                           \n' + 
+//         '   (if (null? args) true                                   \n' + 
+//         '       (if (= (length args) 1) (first args)                \n' + 
+//         '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
+//         ')                                                        \n'
+//         ));
+//         evaluate(parse(
+//         '(do                                                   \n' + 
+//         '(define-macro or (lambda args                           \n' + 
+//         '   (if (null? args) true                                   \n' + 
+//         '       (if (= (length args) 1) (first args)                \n' + 
+//         '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
+//         ')                                                        \n'
+//         ));
     }
     
     function _let() {
         var args = argarray(arguments);
         var x = cons(sym.let, args);
         require(x, length(args) > 1);
-        var bindings = first(args);
+        var bindings = args[0];
         var body = rest(args);
         require(x, all(map(bindings, function(b) {
-            return isarray(b) && length(b) == 2 && issymbol(first(b));
+            return islist(b) && length(b) == 2 && issymbol(b[0]);
         }, "illegal binding list")));
         var uz = unzip(bindings);
-        var vars = first(uz);
+        var vars = uz[0];
         var vals = uz[1];
         var f = [[sym.lambda, vars].concat(map(body, expand))].concat(map(vals, expand));
         return f;
@@ -661,6 +704,14 @@
 
     ////
     
+    function islist(x) {
+        return isarray(x);
+    }
+    
+    function isnonemptylist(x) {
+        return islist(x) && x.length;
+    }
+    
     function issymbol(obj) {
         return obj instanceof Symbol;
     }
@@ -687,7 +738,7 @@
                 return '"' + x + '"';
             else if (isvector(x))
                 return '[' + map(x, tostring).join(' ') + ']'
-            else if (isarray(x))
+            else if (islist(x))
                 return '(' + map(x, tostring).join(' ') + ')'
             else if (isobject(x))
                 return '{' + map(funk.keys(x), function(key) {
@@ -704,7 +755,7 @@
     
     var all, argarray, assign, cons, contains, each, existy, 
     filter, first, isarray, isboolean, iscoll, isempty, isfunction, 
-    isobject, ispair, isstring, keys, length, map, 
+    isobject, isstring, keys, length, map, 
     pick, reduce, rest, startswith, unzip, values, zipobject;
     
     function initFunk() {
@@ -723,7 +774,6 @@
         isempty = funk.isempty;
         isfunction = funk.isfunction;
         isobject = funk.isobject;
-        ispair = funk.ispair;
         isstring = funk.isstring;
         keys = keys;
         length = funk.length;

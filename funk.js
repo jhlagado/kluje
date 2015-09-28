@@ -25,6 +25,7 @@
     lib.contains = contains;
     lib.each = each;
     lib.existy = existy;
+    lib.extend = extend;
     lib.filter = filter;
     lib.first = first;
     lib.getkeys = getkeys;
@@ -35,7 +36,6 @@
     lib.isequal = isequal;
     lib.isfunction = isfunction;
     lib.isobject = isobject;
-    lib.ispair = ispair;
     lib.isstring = isstring;
     lib.keys = keys;
     lib.length = length;
@@ -47,7 +47,8 @@
     lib.unzip = unzip;
     lib.values = values;
     lib.zipobject = zipobject;
-    
+
+    //
     function all(x, f) {
         if (!existy(f))
             f = function(item) {
@@ -81,8 +82,8 @@
         if (existy(x))
             return [x].concat(y);
     }
-
-    function contains(x, y){
+    
+    function contains(x, y) {
         return x && x.indexOf && x.indexOf(y) != -1
     }
     
@@ -94,6 +95,14 @@
     
     function existy(x) {
         return x != null;
+    }
+    
+    function extend(x, y) {
+        for (key in y) {
+            if (y.hasOwnProperty(key)) {
+                x[key] = y[key];
+            }
+        }
     }
     
     function filter(array, func) {
@@ -113,17 +122,16 @@
         return Object.keys(a);
     }
     
-    function iscoll(x) {
-        var isargs = x.constructor == arguments.constructor;
-        return isargs || (x instanceof Array);
-    }
-
     function isarray(x) {
         return x && Array.isArray(x)
     }
     
+    function iscoll(x) {
+        return x && !issimple(x) && x.length;
+    }
+    
     function isempty(x) {
-        return isarray(x) && !x.length
+        return iscoll(x) && !x.length
     }
     
     function isobject(x) {
@@ -146,69 +154,65 @@
         return obj && obj.constructor == Symbol;
     }
     
-    function ispair(x) {
-        return isarray(x) && x.length;
+    function issimple(x) {
+        if (x == null)
+            return true;
+        var type = typeof (x);
+        return type == 'number' || type == 'boolean' || type == 'string';
+    }
+    
+    function valueof(x) {
+        return (x && x.valueOf) ? x.valueOf() : x;
     }
     
     function isequal(a, b, maxdepth) {
         
-        var retval = false;
+        a = valueof(a);
+        b = valueof(b);
+
+        //         if (a === b) return true;
         
         if (!maxdepth)
             maxdepth = 1000;
         
         if (maxdepth) 
         {
-            retval = 
-            (isobject(a) && isobject(b)) || 
-            (isarray(a) && isarray(b)) || 
-            (
-            !(isobject(a)) || (isarray(a)) && 
-            !(isobject(b)) || (isarray(b))
-            );
-            
-            if (retval) 
+            if ((issimple(a) && issimple(b)) || (isobject(a) && isobject(b)) || (iscoll(a) && iscoll(b))) 
             {
-                if (isobject(a)) 
+                if (issimple(a)) {
+                    return a == b
+                } 
+                else if (isobject(a)) 
                 {
-                    retval = length(getkeys(a)) == length(getkeys(b));
-                    if (retval) 
-                    {
-                        for (var lkey in a) 
-                        {
+                    if (length(getkeys(a)) == length(getkeys(b))) {
+                        var retval;
+                        for (var lkey in a) {
                             retval = (lkey in b) && isequal(a[lkey], b[lkey], maxdepth - 1);
                             if (!retval)
                                 break;
                         }
+                        return retval
                     }
                 } 
-                else if (isarray(a)) 
+                else if (iscoll(a)) 
                 {
-                    retval = length(a) == length(b);
-                    if (retval) 
-                    {
-                        var lindex = 0;
-                        for (var litem of a) 
-                        {
-                            retval = isequal(litem, b[lindex], maxdepth - 1);
-                            if (!retval)
-                                break;
-                            lindex += 1;
-                        }
+                    if (length(a) == length(b)) {
+                        return a.every(function(litem, lindex) {
+                            return isequal(litem, b[lindex], maxdepth - 1);
+                        })
                     }
-                } 
-                else
-                    retval = a == b
+                }
             }
         }
         
-        return retval;
+        return false;
     }
     
     function keys(x) {
-        if (x) return Object.keys(x);
+        if (x)
+            return Object.keys(x);
     }
-
+    
     function length(x) {
         if (x && x.length)
             return x.length;
@@ -235,7 +239,7 @@
     }
     
     function rest(x) {
-        if (isarray(x) || isstring(x))
+        if (iscoll(x) || isstring(x))
             return x.slice(1);
     }
     
@@ -256,7 +260,7 @@
         }
         var length = 0;
         array = filter(array, function(group) {
-            if (isarray(group)) {
+            if (iscoll(group)) {
                 length = Math.max(group.length, length);
                 return true;
             }
@@ -276,7 +280,7 @@
         length = props ? props.length : 0, 
         result = {};
         
-        if (length && !values && !isarray(props[0])) {
+        if (length && !values && !iscoll(props[0])) {
             values = [];
         }
         while (++index < length) {

@@ -6,6 +6,59 @@ angular.module("klujeTests", [])
     return {
         tests: [
             {
+                test: '"12 \n3"', 
+                expect: function(data, result){
+                    var s = "12 \n3";
+                    return result == s;
+                }
+            }, 
+            {
+                test: '"12 3"', 
+                expect: function(data, result){
+                    return result == "12 3";
+                }
+            }, 
+            {
+                test: '((fn [a & b] b) 0 1 2 3)', 
+                expect: [1,2,3],
+            }, 
+            {
+                test: '((fn (([a] a) ([a b] (+ a b) 100 ))) 1 2)', 
+                expect: 100,
+            }, 
+            {
+                test: '((fn (([a] a) ([a b] (+ a b)))) 1 2)', 
+                expect: 3,
+            }, 
+            {
+                test: '((fn (([a] a) ([a b] (+ a b)))) 1)', 
+                expect: 1,
+            }, 
+            {
+                test: '((fn [a] a) 1)', 
+                expect: 1,
+            }, 
+            {
+                test: '(fn [a] a)', 
+                expect: function(data, result){
+                    return funk.isfunction(result) && result(1) == 1;
+                }
+            }, 
+            {
+                test: '()', 
+                expect: function(data, result){
+                    return funk.isarray(result) && !result.length;
+                }
+            }, 
+            {test: '\'x', expect:kluje.createSym('x')},
+            {
+                test: '{:a 2}', 
+                expect: function(data, result){
+                    return (result instanceof Object) && 
+                    funk.isequal(result, {':a':2})
+                }
+            }, 
+            {
                 test: '(quote "x")', 
                 expect: function(data, result){
                     return (result[1] == result[3]); 
@@ -42,13 +95,6 @@ angular.module("klujeTests", [])
                 expect: function(data, result){
                     return (result instanceof Array) && 
                     funk.isequal(result, [1,2,3])
-                }
-            }, 
-            {
-                test: '{:a 2}', 
-                expect: function(data, result){
-                    return (result instanceof Object) && 
-                    funk.isequal(result, {':a':2})
                 }
             }, 
             {
@@ -101,12 +147,11 @@ angular.module("klujeTests", [])
             {test: '(and 1 2 3)", 3), ("(and (> 2 1) 2 3)', expect:3}, 
             {test:'(and)', expect:true},
             {test: '(and (> 2 1) (> 2 3))', expect:false},
-            {test: '(define-macro unless (lambda args `(if (not ~(first args)) (begin ~@(rest args))))) ; test `', expect:undefined},
+            {test: '(define-macro unless (lambda args `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
             {test: '(unless (= 2 (+ 1 1)) (display 2) 3 4)', expect:undefined},
             {test: '(unless (= 4 (+ 1 1)) (display 2) (display "\\n") 3 4)', expect:4},
             {test: '(quote x)', expect:expectSymbol('x')}, 
             {test: '(quote (1 2 three))', expect:[1, 2, kluje.createSym('three')]}, 
-            {test: '\'x', expect:kluje.createSym('x')},
             {test: '\'(one 2 3)', expect:[kluje.createSym('one'), 2, 3]},
             {test: '(define L (list 1 2 3))', expect:undefined},
             {test: '`(testing ~@L testing)', expect:[kluje.createSym('testing'),1,2,3,kluje.createSym('testing')]},
@@ -127,7 +172,7 @@ angular.module("klujeTests", [])
             {test: '(define x 3)',expect: undefined}, 
             {test: 'x',expect: 3}, 
             {test: '(+ x x)',expect: 6}, 
-            {test: '(begin (define x 1) (set! x (+ x 1)) (+ x 1))',expect: 3}, 
+            {test: '(do (define x 1) (set! x (+ x 1)) (+ x 1))',expect: 3}, 
             {test: '((lambda (x) (+ x x)) 5)',expect: 10}, 
             {test: '(define twice (lambda (x) (* 2 x)))',expect: undefined}, 
             {test: '(twice 5)',expect: 10}, 
@@ -150,13 +195,12 @@ angular.module("klujeTests", [])
             {test: '(mid (list 1 2 3 4))',expect: 2}, 
             
             {test: '(define riff-shuffle (lambda (deck) \n' + 
-                '(begin ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))',expect: undefined}, 
+                '(do ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))',expect: undefined}, 
             
             {test: '(riff-shuffle (list 1 2 3 4 5 6 7 8))',expect: [1, 5, 2, 6, 3, 7, 4, 8]}, 
             {test: '((repeat riff-shuffle) (list 1 2 3 4 5 6 7 8))',expect: [1, 3, 5, 7, 2, 4, 6, 8]}, 
             {test: '(riff-shuffle (riff-shuffle (riff-shuffle (list 1 2 3 4 5 6 7 8))))',expect: [1, 2, 3, 4, 5, 6, 7, 8]}, 
 
-            {test: '()',expect:expectSyntaxError}, 
             {test: '(set! x)',expect:expectSyntaxError}, 
             {test: '(define 3 4)',expect:expectSyntaxError}, 
             {test: '(quote 1 2)',expect:expectSyntaxError}, 
@@ -216,10 +260,10 @@ angular.module("klujeTests", [])
             {name: 'bool false',test: 'false',expect: false}, 
             {name: 'string',test: '"x"',expect: 'x'}, 
             {name: 'list',test: '(list 1 2 3)',expect: [1, 2, 3]}, 
-            {name: 'define var',test: '(begin (define x 1) x)',expect: 1}, 
+            {name: 'define var',test: '(do (define x 1) x)',expect: 1}, 
             {
                 name: 'define var string',
-                test: '(begin (define x "hello") x)',
+                test: '(do (define x "hello") x)',
                 expect: "hello"
             }, 
             {
@@ -249,7 +293,7 @@ angular.module("klujeTests", [])
             }, 
             {
                 name: 'set!',
-                test: '(begin (define x "hi") (set! x "bye") x)',
+                test: '(do (define x "hi") (set! x "bye") x)',
                 expect: "bye"
             }, 
         ]
@@ -291,6 +335,7 @@ angular.module("klujeTests", [])
 
         var result, error;
         try {
+            console.log(data.test);
             result = kluje.run(data.test);
         } 
         catch (e) {
