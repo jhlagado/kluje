@@ -374,7 +374,7 @@
                 // see https://regex101.com/#javascript
                 // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
                 
-                var regex = /[\s,]*("[^"]*"|~@|[(){}[\]'`~]|'(?:[\\].|[^\\'])*'|;.*|[^\s,(){}[\]`~;"]*)(.*)/g;
+                var regex = /[\s,]*("[^"]*"|~@|[(){}[\]'`~]|'(?:[\\].|[^\\'])*'|;.*|[^\s,(){}[\]`~;"]*)([^]*)/g;
                 var list = regex.exec(line);
                 var token = list[1];
                 line = list[2];
@@ -601,22 +601,22 @@
     function initMacros() {
         macrotable = {};
         macrotable['let'] = _let;
-//         evaluate(parse(
-//         '(do                                                   \n' + 
-//         '(define-macro and (lambda args                           \n' + 
-//         '   (if (null? args) true                                   \n' + 
-//         '       (if (= (length args) 1) (first args)                \n' + 
-//         '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
-//         ')                                                        \n'
-//         ));
-//         evaluate(parse(
-//         '(do                                                   \n' + 
-//         '(define-macro or (lambda args                           \n' + 
-//         '   (if (null? args) true                                   \n' + 
-//         '       (if (= (length args) 1) (first args)                \n' + 
-//         '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
-//         ')                                                        \n'
-//         ));
+        evaluate(parse(
+        '(do                                                   \n' + 
+        '(define-macro and (lambda args                           \n' + 
+        '   (if (null? args) true                                   \n' + 
+        '       (if (= (length args) 1) (first args)                \n' + 
+        '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
+        ')                                                        \n'
+        ));
+        evaluate(parse(
+        '(do                                                   \n' + 
+        '(define-macro or (lambda args                           \n' + 
+        '   (if (null? args) true                                   \n' + 
+        '       (if (= (length args) 1) (first args)                \n' + 
+        '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
+        ')                                                        \n'
+        ));
     }
     
     function _let() {
