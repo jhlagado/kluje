@@ -1,57 +1,71 @@
 'use strict';
 
-jex.service('macros', ['types'], function(types) {
-
-    var macrotable = types.newDict();
-
+jex.service('macros', ['funcs', 'types', 'utils', 'kluje'], function(_, types, utils, kluje) {
+    
+    var defs = getDefs();
+    var macrotable = types.newDict({
+        let: _let,
+    });
+    
     return {
         isMacro: isMacro,
-        expand: expand,
+        load: load,
+        define: define,
     }
-
-    function isMacro(name){
+    
+    function isMacro(name) {
+        load(name);
         return name in macrotable;
     }
-
-    function expand(x) {
-
-    } 
-
-    function init() {
-        macrotable = {};
-        macrotable['let'] = _let;
-        evaluate(parse(
-        '(do                                                   \n' + 
-        '(define-macro and (lambda args                           \n' + 
-        '   (if (null? args) true                                   \n' + 
-        '       (if (= (length args) 1) (first args)                \n' + 
-        '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
-        ')                                                        \n'
-        ));
-        evaluate(parse(
-        '(do                                                   \n' + 
-        '(define-macro or (lambda args                           \n' + 
-        '   (if (null? args) true                                   \n' + 
-        '       (if (= (length args) 1) (first args)                \n' + 
-        '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
-        ')                                                        \n'
-        ));
+    
+    function load(name) {
+        if (name in macrotable)
+            return macrotable[name]
+        else if (name in defs) {
+            var value = kluje.evaluate(kluje.parse(defs[name]))
+            return define(name, value);
+        }
     }
     
+    function define(name, value) {
+        macrotable[name] = value;
+        return value;
+    }
+    
+    function getDefs() {
+        return {
+            andx: '(fn (([] "none") ([x] "one") ([x y] "two") ([& args] "many")))',
+            
+            and: '(fn [& args]                                          \n' + 
+            '   (if (null? args) true                                   \n' + 
+            '       (if (= (length args) 1) (first args)                \n' + 
+            '           `(if ~(first args) (and ~@(rest args)) false))))',
+            or: '(fn [& args]                                          \n' + 
+            '   (if (null? args) nil                                   \n' + 
+            '       (if (= (length args) 1) (first args)                \n' + 
+            '           `(if ~(first args) true (or ~@(rest args))))))',
+        }
+    }
+        
     function _let() {
-        var args = argarray(arguments);
-        var x = cons(sym.let, args);
-        require(x, length(args) > 1);
-        var bindings = args[0];
-        var body = rest(args);
-        require(x, all(map(bindings, function(b) {
-            return islist(b) && length(b) == 2 && issymbol(b[0]);
+        var args = utils.argarray(arguments);
+        var x = _.cons(types.sym.let, args);
+        utils.require(x, _.length(args) > 1);
+        var bindings = _.partition(2, args[0]);
+        var body = _.rest(args);
+        utils.require(x, utils.every(bindings.map(function(b) {
+            return types.islist(b) && _.length(b) == 2 && types.isSym(b[0]);
         }, "illegal binding list")));
-        var uz = unzip(bindings);
-        var vars = uz[0];
+        var uz = utils.unzip(bindings);
+        var vars = new types.Vector(uz[0]);
         var vals = uz[1];
-        var f = [[sym.lambda, vars].concat(map(body, expand))].concat(map(vals, expand));
+        var f = [[types.sym.fn, vars].concat(body.map(expand))].concat(vals.map(expand));
         return f;
-    }
+        
+        function expand(x) {
+            return kluje.expand(x, true);
+        }
     
+    }
+
 });

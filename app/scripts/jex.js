@@ -50,11 +50,16 @@
             throw 'Cannot find service: ' + name;
         var service = services[name];
         if (!('value' in service)) {
-            if (service.resolving)
-                throw 'Circular dependency on self: ' + name;
-            service.resolving = true;
-            service.value = use(service.deps, service.factory);
-            service.resolving = false;
+            service.value = {}; 
+//             if (service.resolving)
+//                 throw 'Circular dependency on self: ' + name;
+            service.value.__resolving = true;
+            var value = use(service.deps, service.factory);
+            Object.keys(value).reduce(function(acc,key){
+                acc[key] = value[key];
+                return acc;
+            },service.value);
+         delete service.value.__resolving
         }
         return service.value;
     }

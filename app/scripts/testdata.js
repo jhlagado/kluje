@@ -1,10 +1,21 @@
-jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
+jex.service('testdata', ['funk', 'types'], function(funk, types) {
     
     var names = ['isarray', 'isfunction', 'isequal'];
     return jex.inject(funk, function(isarray, isfunction, isequal) {
 
         return {
             tests: [
+                {
+                    test: '(let [x 1] x)',
+                    expect: 1,
+                }, 
+                {
+                    test: '(quote "x")', 
+                    expect: function(data, result){
+                        return (result[1] == result[3]); 
+                    }
+                }, 
+                {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
                 {
                     test: '"12 \n3"', 
                     expect: function(data, result){
@@ -50,7 +61,7 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                         return isarray(result) && !result.length;
                     }
                 }, 
-                {test: '\'x', expect:kluje.createSym('x')},
+                {test: '\'x', expect:types.createSym('x')},
                 {
                     test: '{:a 2}', 
                     expect: function(data, result){
@@ -59,13 +70,7 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                     }
                 }, 
                 {
-                    test: '(quote "x")', 
-                    expect: function(data, result){
-                        return (result[1] == result[3]); 
-                    }
-                }, 
-                {
-                    test: '`(let ((x# 1)) (= x# 1))', 
+                    test: '`(let [x# 1] (= x# 1))', 
                     expect: function(data, result){
                         return result; 
                     }
@@ -100,13 +105,13 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {
                     test: ":xyz",
                     expect: function(data, result){
-                        return kluje.iskeyword(result) && result == 'xyz';
+                        return types.iskeyword(result) && result == 'xyz';
                     }
                 }, 
                 {
                     test: "(keyword xyz)",
                     expect: function(data, result){
-                        return kluje.iskeyword(result) && result == 'xyz';
+                        return types.iskeyword(result) && result == 'xyz';
                     }
                 }, 
                 {
@@ -119,15 +124,15 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {
                     test: "[1 2]", 
                     expect: function(data, result){
-                        return (kluje.isvector(result)) && 
+                        return (types.isvector(result)) && 
                         isequal(result.toArray(), [1,2])
                     }
                 }, 
                 {test: ",',(,1, 2, 7,),;testing , see how it goes",expect: [1, 2, 7]}, 
 
                 {test: '\
-    (define combine (lambda (f)\n\
-        (lambda (x y) \n\
+    (define combine (fn [f]     \n\
+        (fn [x y]               \n\
             (if (null? x) (quote ()) \n\
                (f (list (first x) (first y)) \n\
                  ((combine f) (rest x) (rest y)))))))\
@@ -142,20 +147,18 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {test: '(and true false)',expect: false}, 
 
                 {test: '(zip (list 1 2 3 4) (list 5 6 7 8))',expect: [[1, 5], [2, 6], [3, 7], [4, 8]]}, 
-                {test: '(let ((a 1) (b 2)) (+ a b))', expect:3},
-                {test: '(let ((a 1) (b 2 3)) (+ a b))', expect:expectSyntaxError},
+                {test: '(let [a 1 b 2] (+ a b))', expect:3},
                 {test: '(and 1 2 3)", 3), ("(and (> 2 1) 2 3)', expect:3}, 
                 {test:'(and)', expect:true},
                 {test: '(and (> 2 1) (> 2 3))', expect:false},
-                {test: '(define-macro unless (lambda args `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
                 {test: '(unless (= 2 (+ 1 1)) (display 2) 3 4)', expect:undefined},
                 {test: '(unless (= 4 (+ 1 1)) (display 2) (display "\\n") 3 4)', expect:4},
-                {test: '(quote x)', expect:expectSymbol('x')}, 
-                {test: '(quote (1 2 three))', expect:[1, 2, kluje.createSym('three')]}, 
-                {test: '\'(one 2 3)', expect:[kluje.createSym('one'), 2, 3]},
+                {test: '(quote x)', expect:expectSym('x')}, 
+                {test: '(quote (1 2 three))', expect:[1, 2, types.createSym('three')]}, 
+                {test: '\'(one 2 3)', expect:[types.createSym('one'), 2, 3]},
                 {test: '(define L (list 1 2 3))', expect:undefined},
-                {test: '`(testing ~@L testing)', expect:[kluje.createSym('testing'),1,2,3,kluje.createSym('testing')]},
-                {test: '`(testing ~L testing)', expect:[kluje.createSym('testing'),[1,2,3],kluje.createSym('testing')]},
+                {test: '`(testing ~@L testing)', expect:[types.createSym('testing'),1,2,3,types.createSym('testing')]},
+                {test: '`(testing ~L testing)', expect:[types.createSym('testing'),[1,2,3],types.createSym('testing')]},
                 {test: '`~@L', expect:expectSyntaxError},
 
                 {test: '\'(1 ;test comments \'          \n' +
@@ -164,7 +167,7 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 '3) ; final comment          \n',
                 expect:[1,2,3]},
 
-                {test: '(quote (testing 1 (2.0) -3.14e159))',expect: [kluje.createSym('testing'), 1, [2.0], -3.14e159]}, 
+                {test: '(quote (testing 1 (2.0) -3.14e159))',expect: [types.createSym('testing'), 1, [2.0], -3.14e159]}, 
                 {test: '(+ 2 2)',expect: 4}, 
                 {test: '(+ (* 2 100) (* 1 10))',expect: 210}, 
                 {test: '(if (> 6 5) (+ 1 1) (+ 2 2))',expect: 2}, 
@@ -173,28 +176,28 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {test: 'x',expect: 3}, 
                 {test: '(+ x x)',expect: 6}, 
                 {test: '(do (define x 1) (set! x (+ x 1)) (+ x 1))',expect: 3}, 
-                {test: '((lambda (x) (+ x x)) 5)',expect: 10}, 
-                {test: '(define twice (lambda (x) (* 2 x)))',expect: undefined}, 
+                {test: '((fn [x] (+ x x)) 5)',expect: 10}, 
+                {test: '(define twice (fn [x] (* 2 x)))',expect: undefined}, 
                 {test: '(twice 5)',expect: 10}, 
-                {test: '(define compose (lambda (f g) (lambda (x) (f (g x)))))',expect: undefined}, 
+                {test: '(define compose (fn [f g] (fn [x] (f (g x)))))',expect: undefined}, 
                 {test: '((compose list twice) 5)',expect: [10]}, 
-                {test: '(define repeat (lambda (f) (compose f f)))',expect: undefined}, 
+                {test: '(define repeat (fn [f] (compose f f)))',expect: undefined}, 
                 {test: '((repeat twice) 5)',expect: 20}, 
                 {test: '((repeat (repeat twice)) 5)',expect: 80}, 
-                {test: '(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1))))))',expect: undefined}, 
+                {test: '(define fact (fn [n] (if (<= n 1) 1 (* n (fact (- n 1))))))',expect: undefined}, 
                 {test: '(fact 3)',expect: 6}, 
                 {test: '(fact 50)',expect: 30414093201713378043612608166064768844377641568960512000000000000}, 
-                {test: '(define abs (lambda (n) ((if (> n 0) + -) 0 n)))',expect: undefined}, 
+                {test: '(define abs (fn [n] ((if (> n 0) + -) 0 n)))',expect: undefined}, 
                 {test: '(list (abs -3) (abs 0) (abs 3))',expect: [3, 0, 3]}, 
 
-                {test: '(define take (lambda (n seq) (if (<= n 0) (quote ()) \n (cons (first seq) (take (- n 1) (rest seq))))))',expect: undefined}, 
+                {test: '(define take (fn [n seq] (if (<= n 0) (quote ()) \n (cons (first seq) (take (- n 1) (rest seq))))))',expect: undefined}, 
                 {test: '(take 2 (list 1 2 3))',expect: [1, 2]}, 
-                {test: '(define drop (lambda (n seq) (if (<= n 0) seq (drop (- n 1) (rest seq)))))',expect: undefined}, 
+                {test: '(define drop (fn [n seq] (if (<= n 0) seq (drop (- n 1) (rest seq)))))',expect: undefined}, 
                 {test: '(drop 1 (list 1 2 3))',expect: [2, 3]}, 
-                {test: '(define mid (lambda (seq) (/ (length seq) 2)))',expect: undefined}, 
+                {test: '(define mid (fn [seq] (/ (length seq) 2)))',expect: undefined}, 
                 {test: '(mid (list 1 2 3 4))',expect: 2}, 
 
-                {test: '(define riff-shuffle (lambda (deck) \n' + 
+                {test: '(define riff-shuffle (fn [deck] \n' + 
                     '(do ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))',expect: undefined}, 
 
                 {test: '(riff-shuffle (list 1 2 3 4 5 6 7 8))',expect: [1, 5, 2, 6, 3, 7, 4, 8]}, 
@@ -205,24 +208,24 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {test: '(define 3 4)',expect:expectSyntaxError}, 
                 {test: '(quote 1 2)',expect:expectSyntaxError}, 
                 {test: '(if 1 2 3 4)',expect:expectSyntaxError}, 
-                {test: '(lambda 3 3)',expect:expectSyntaxError}, 
-                {test: '(lambda (x))',expect:expectSyntaxError}, 
+                {test: '(fn 3 3)',expect:expectSyntaxError}, 
+                {test: '(fn [x])',expect:expectSyntaxError}, 
                 {test: '(if (= 1 2) (define-macro a \'a) (define-macro a \'b))',expect:expectSyntaxError}, 
                 {test: '(define (twice x) (* 2 x))', expect:undefined}, 
                 {test: '(twice 2)', expect:4},
-                {test: '(twice 2 2)', expect:expectSyntaxError},
-                {test: '(define lyst (lambda items items))', undefined},
+                {test: '(twice 2 2)', expect:expectRuntimeError},
+                {test: '(define lyst (fn [& items] items))', undefined},
                 {test: '(lyst 1 2 3 (+ 2 2))', expect:[1,2,3,4]},
                 {test: '(if 1 2)', expect:2},
                 {test: '(if (= 3 4) 2)', expect:undefined},
-                {test: '(call/cc (lambda (throw) (+ 5 (* 10 (throw 1))))) ;; throw', expect:1},
-                {test: '(call/cc (lambda (throw) (+ 5 (* 10 1)))) ;; do not throw', expect:15},
-                {test:'(call/cc (lambda (throw) \n' + 
-                          '(+ 5 (* 10 (call/cc (lambda (escape) (* 100 (escape 3)))))))) ; 1 level', expect:35},
-                {test:'(call/cc (lambda (throw)  \n' + 
-                          '(+ 5 (* 10 (call/cc (lambda (escape) (* 100 (throw 3)))))))) ; 2 levels', expect:3},
-                {test:'(call/cc (lambda (throw)  \n' + 
-                '(+ 5 (* 10 (call/cc (lambda (escape) (* 100 1))))))) ; 0 levels', expect:1005},
+                {test: '(call/cc (fn [throw] (+ 5 (* 10 (throw 1))))) ;; throw', expect:1},
+                {test: '(call/cc (fn [throw] (+ 5 (* 10 1)))) ;; do not throw', expect:15},
+                {test:'(call/cc (fn [throw] \n' + 
+                          '(+ 5 (* 10 (call/cc (fn [escape] (* 100 (escape 3)))))))) ; 1 level', expect:35},
+                {test:'(call/cc (fn [throw]  \n' + 
+                          '(+ 5 (* 10 (call/cc (fn [escape] (* 100 (throw 3)))))))) ; 2 levels', expect:3},
+                {test:'(call/cc (fn [throw]  \n' + 
+                '(+ 5 (* 10 (call/cc (fn [escape] (* 100 1))))))) ; 0 levels', expect:1005},
 
 
                 {test: '(define ((account bal) amt) (set! bal (+ bal amt)) bal)', expect:undefined},
@@ -238,7 +241,7 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                     '    (newton guess2 function derivative epsilon)))', expect:undefined},
                 {test:
                 '(define (square-root a)\n' +
-                     '(newton 1 (lambda (x) (- (* x x) a)) (lambda (x) (* 2 x)) 1e-8))', 
+                     '(newton 1 (fn [x] (- (* x x) a)) (fn [x] (* 2 x)) 1e-8))', 
                      expect:undefined},
                 {test: '(> (square-root 200.) 14.14213)', expect:true},
                 {test: '(< (square-root 200.) 14.14215)', expect:true},
@@ -262,56 +265,49 @@ jex.service('testdata', ['kluje', 'funk'], function(kluje, funk) {
                 {name: 'list',test: '(list 1 2 3)',expect: [1, 2, 3]}, 
                 {name: 'define var',test: '(do (define x 1) x)',expect: 1}, 
                 {
-                    name: 'define var string',
                     test: '(do (define x "hello") x)',
                     expect: "hello"
                 }, 
                 {
-                    name: 'type',
                     test: '(type "")',
                     expect: "string"
                 }, 
                 {
-                    name: 'get',
                     test: '(type (get "" "constructor"))',
                     expect: "function"
                 }, 
                 {
-                    name: 'lambda',
-                    test: '(type (lambda (x) (x)))',
+                    test: '(type (fn [x] (x)))',
                     expect: "function"
                 }, 
                 {
-                    name: 'lambda run',
-                    test: '((lambda (x) x) 1)',
+                    test: '((fn [x] x) 1)',
                     expect: 1,
                 }, 
                 {
-                    name: 'let macro',
-                    test: '(let((x 1)(y 2)) (+ x y))',
+                    test: '(let [x 1 y 2] (+ x y))',
                     expect: 3,
                 }, 
                 {
-                    name: 'set!',
                     test: '(do (define x "hi") (set! x "bye") x)',
                     expect: "bye"
                 }, 
             ]
         }            
 
-        function expectSymbol(x){
+        function expectSym(x){
             return function(data, result, error){
-                return result && kluje.issymbol(result) && 
+                return result && types.isSym(result) && 
                 result.toString() == x;
             }
         }
 
         function expectSyntaxError(data, result, error) {
-            return error && error.constructor == kluje.SyntaxError;
+            return error && error.constructor == types.SyntaxError;
         }
 
         function expectRuntimeError(data, result, error) {
-            return error && error.constructor == kluje.RuntimeError;
+            return error && error.constructor == types.RuntimeError;
         }
 
     }, names);

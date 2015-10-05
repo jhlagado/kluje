@@ -1,4 +1,4 @@
-jex.use(['funk', 'kluje'], function(funk, kluje) {
+jex.use(['funk', 'kluje','types'], function(funk, kluje,types) {
     
     angular.module("klujeRepl", [])
     
@@ -18,7 +18,7 @@ jex.use(['funk', 'kluje'], function(funk, kluje) {
             
             $scope.lines.push({
                 command: $scope.command,
-                result: kluje.tostring(result),
+                result: types.tostring(result),
                 error: error,
             });
             if ($scope.lines.length > 1000)

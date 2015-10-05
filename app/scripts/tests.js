@@ -1,6 +1,6 @@
 "use strict";
 
-jex.use(['funk', 'kluje', 'testdata'], function(funk, kluje, testdata) {
+jex.use(['funk', 'kluje', 'testdata', 'types', 'utils'], function(funk, kluje, testdata, types, utils) {
     
     var names = ('isarray isfunction isequal').split(' ');
     
@@ -11,9 +11,7 @@ jex.use(['funk', 'kluje', 'testdata'], function(funk, kluje, testdata) {
         
         .controller('Tests', function($scope) {
             
-            jex.get('funk');
-            
-            var output = new function Output() {
+            utils.output = new function Output() {
                 this.lines = [];
                 this.log = function(msg) {
                     this.lines.push(msg);
@@ -22,11 +20,9 @@ jex.use(['funk', 'kluje', 'testdata'], function(funk, kluje, testdata) {
                 this.error = this.log;
             }
             
-            kluje.setoutput(output);
-            
             $scope.results = testdata.tests.map(function(data) {
                 
-                output.lines = [];
+                utils.output.lines = [];
                 
                 var result, error;
                 try {
@@ -35,21 +31,21 @@ jex.use(['funk', 'kluje', 'testdata'], function(funk, kluje, testdata) {
                 } 
                 catch (e) {
                     error = e;
-                    output.lines.push(e.stack);
+                    utils.output.lines.push(e.stack);
                 }
                 
                 var line = {
                     name: data.name,
                     test: data.test,
-                    result: error ? error.msg : kluje.tostring(result),
-                    output: output.lines,
+                    result: error ? error.msg : types.tostring(result),
+                    output: utils.output.lines,
                 }
                 if (isfunction(data.expect)) {
                     line.passed = data.expect(data, result, error);
                 } 
                 else {
                     line.passed = isequal(data.expect, result);
-                    line.expect = kluje.tostring(data.expect);
+                    line.expect = types.tostring(data.expect);
                 }
                 return line;
             });

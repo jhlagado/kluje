@@ -92,8 +92,7 @@
     }
     
     function cons(x, y) {
-        if (existy(x))
-            return [x].concat(y);
+        return existy(y) ? [x].concat(y) : [x];
     }
     
     function contains(x, y) {
@@ -132,7 +131,7 @@
     }
     
     function iscoll(x) {
-        return x && !issimple(x) && x.length;
+        return x && !issimple(x) && ('length' in x);
     }
     
     function isempty(x) {
@@ -153,10 +152,6 @@
     
     function isfunction(x) {
         return typeof x == 'function' || false;
-    }
-    
-    function issymbol(obj) {
-        return obj && obj.constructor == Symbol;
     }
     
     function issimple(x) {

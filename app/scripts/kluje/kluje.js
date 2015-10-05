@@ -1,6 +1,6 @@
 'use strict';
 
-jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) {
+jex.service('kluje', ['funk', 'macros', 'types', 'utils'], function(funk, macros, types, utils) {
     
     var libkeys = (
 
@@ -12,103 +12,43 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
 
     //types
     
-    'newDict'
+    'newDict Sym createSym isSym sym quotes ' + 
+    'SyntaxError RuntimeError RuntimeWarning Vector Keyword createAtom ' + 
+    'islist isnonemptylist isvector iskeyword tostring ' + 
+
+    //utils
+    
+    'require destructure '
     
     ).split(' ');
-        
-    var libvalues = funk.assign({}, funk, types);
+    
+    var libvalues = funk.assign({}, funk, types, utils);
     
     return jex.inject(libvalues, 
     function(all, apply, argarray, assign, cons, contains, each, existy, filter, first, isarray, isboolean, 
     iscoll, isempty, isfunction, isobject, isstring, keys, length, map, pick, reduce, rest, 
     startswith, unzip, values, zipobject, 
-    newDict) {
-                
-        var sym, globalEnv, quotes, EOF, macrotable;
+    newDict, Sym, createSym, isSym, sym, quotes, 
+    SyntaxError, RuntimeError, RuntimeWarning, Vector, Keyword, createAtom, 
+    islist, isnonemptylist, isvector, iskeyword, tostring, 
+    require, destructure
+    ) {
         
-        var output = console;
+        var globalEnv, quotes;
         
-        function SyntaxError(msg) {
-            this.msg = 'SyntaxError: ' + msg;
-            output.error(msg);
-        }
-        
-        function RuntimeError(msg) {
-            this.msg = 'RuntimeError: ' + msg;
-            output.error(msg);
-        }
-        
-        function RuntimeWarning(msg) {
-            this.msg = 'RuntimeWarning: ' + msg;
-            output.warn(msg);
-        }
-
-        //Vector
-        function Vector() {
-            Array.prototype.push.apply(this, arguments);
-        }
-        Vector.prototype = Object.create(Array.prototype);
-        Vector.prototype.toArray = function() {
-            return Array.prototype.concat.apply([], this);
-        }
-
-        //Keyword
-        function Keyword(s) {
-            String.call(this, s);
-            this.s = s.valueOf();
-        }
-        Keyword.prototype = Object.create(String.prototype);
-        Keyword.prototype.toString = function() {
-            return ':' + this.s;
-        }
-        Keyword.prototype.valueOf = function() {
-            return this.s;
-        }
-
-        //Symbol
-        function Symbol(s) {
-            String.call(this, s);
-            this.s = s.valueOf();
-        }
-        Symbol.prototype = Object.create(String.prototype);
-        Symbol.prototype.toString = function() {
-            return this.s;
-        }
-        Symbol.prototype.valueOf = function() {
-            return this.s;
-        }
-        
-        initSymbols();
         initGlobals();
-        initMacros();
         
         return {
             
             name: 'kluje',
             version: '0.0.0',
             
-            setoutput: setoutput,
             run: run,
             parse: parse,
             evaluate: evaluate,
-            
-            tostring: tostring,
-            createSym: createSym,
-            issymbol: issymbol,
-            isvector: isvector,
-            iskeyword: iskeyword,
-            
-            SyntaxError: SyntaxError,
-            RuntimeError: RuntimeError,
+            expand: expand,
+        }
         
-        }
-
-        //outputs are objects that support the js logging interface 
-        //e.g. console
-        //they must support the method log()
-        function setoutput(aoutput) {
-            output = aoutput;
-        }
         
         function run(expression) {
             var s = expression; //.replace(/\n/g, ' '); //strip \n
@@ -133,7 +73,7 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
             
             while (true) {
                 
-                if (issymbol(x)) // v reference
+                if (isSym(x)) // v reference
                     return envGet(env, x);
                 else if (!isnonemptylist(x)) // constant literal
                     return x
@@ -144,8 +84,6 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     return new Keyword(x[1]);
                 else if (x[0] === sym.if) // (if test conseq alt)
                     x = evaluate(x[1], env) ? x[2] : x[3];
-                else if (x[0] === sym.or) // (if test conseq alt)
-                    x = evaluate(x[1], env) || evaluate(x[2], env);
                 else if (x[0] === sym['set!']) { // (set! var exp)
                     var v = x[1];
                     envSet(env, v, evaluate(x[2], env));
@@ -156,37 +94,31 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     envDefine(env, v, evaluate(x[2], env));
                     return;
                 } 
-                else if (x[0] === sym.lambda) { // (fn (var*) exp)
-                    var vars = x[1];
-                    var exp = x[2];
-                    return function() {
-                        return evaluate(exp, createEnv(vars, argarray(arguments), env));
-                    }
-                } 
-                else if (x[0] === sym.fn) { // (lambda (var*) exp)
-                    var config = x[1];
+                else if (x[0] === sym.fn) { // (fn [arg1 arg2...] exp)
+                    var sigs = x[1];
                     var f = function() {
                         var numargs = arguments.length;
-                        var arity = reduce(config, function(acc, item) {
+                        var arity = reduce(sigs, function(acc, item) {
                             if (!acc && item.variadic)
-                                return item;
-                            else if (numargs == item.vars.length)
-                                return item;
+                                acc = item;
+                            else if (numargs == item.vars.length) {
+                                if (item.variadic) {
+                                    if (acc.variadic && item.vars.length > acc.vars.length)
+                                        acc = item;
+                                } 
+                                else {
+                                    acc = item;
+                                }
+                            }
                             return acc;
                         }, null);
                         
-                        var args;
-                        if (!arity) {
-                            throw new RuntimeError(isstring(x) + 'number of arguments mismatch')
-                        } 
-                        else {
-                            var args = argarray(arguments);
-                            if (arity.variadic) {
-                                var vl = arity.vars.length - 1;
-                                args = args.slice(0, vl).concat([args.slice(vl)]);
-                            }
-                        }
-                        return evaluate(arity.exp, createEnv(arity.vars, args, env));
+                        if (!arity)
+                            throw new RuntimeError(isstring(x) + 'no matching argument signature found')
+                        
+                        var dict = utils.destructure(arity.vars, argarray(arguments), arity.variadic);
+                        return evaluate(arity.exp, createEnv1(dict, env));
+                        
                     }
                     return f;
                 } 
@@ -232,13 +164,9 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 require(x, length(x) == 4)
                 return map(x, expand)
             } 
-            else if (x[0] === sym.or) {
-                require(x, length(x) == 3)
-                return map(x, expand)
-            } 
             else if (x[0] === sym['set!']) {
                 require(x, length(x) == 3);
-                require(x, issymbol(x[1]), 'can set! only a symbol');
+                require(x, isSym(x[1]), 'can set! only a symbol');
                 return [sym['set!'], x[1], expand(x[2])]
             } 
             else if (x[0] === sym.define || x[0] === sym['define-macro']) {
@@ -247,19 +175,19 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 var v = x[1];
                 var body = x.slice(2);
                 if (islist(v) && v) { // (define (f args) body)
-                    var f = v[0];
-                    var args = rest(v); //  => (define f (lambda (args) body))
-                    return expand([def, f, [sym.lambda, args].concat(body)])
+                    var fname = v[0];
+                    var args = new types.Vector(rest(v)); //  => (define f (fn [args] body))
+                    return expand([def, fname, [sym.fn, args].concat(body)])
                 } 
                 else {
                     require(x, length(x) == 3) // (define non-var/list exp) => Error
-                    require(x, issymbol(v), 'can define only a symbol')
+                    require(x, isSym(v), 'can define only a symbol')
                     var exp = expand(x[2])
                     if (def == sym['define-macro']) {
                         require(x, toplevel, 'define-macro only allowed at top level');
                         var proc = evaluate(exp);
                         require(x, isfunction(proc), 'macro must be a procedure');
-                        macrotable[v] = proc; // (define-macro v proc)
+                        macros.define(v, proc);
                         return; //  => None; add v:proc to macro_table
                     }
                     return [sym.define, v, exp]
@@ -274,16 +202,6 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     });
                 }
             } 
-            else if (x[0] === sym.lambda) { // (lambda (x) e1 e2) 
-                require(x, length(x) >= 3) //  => (lambda (x) (do e1 e2))
-                var vars = x[1];
-                var body = x.slice(2);
-                require(x, issymbol(vars) || all(map(vars, function(v) {
-                    return issymbol(v);
-                })), 'illegal lambda argument list')
-                var exp = length(body) == 1 ? body[0] : cons(sym.do, body);
-                return [sym.lambda, vars, expand(exp)]
-            } 
             else if (x[0] === sym.fn) { // (fn (x) e1 e2) 
                 return expandFn(x)
             } 
@@ -291,10 +209,20 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 require(x, length(x) == 2)
                 return expandSyntaxQuote(x[1])
             } 
-            else if (issymbol(x[0]) && (x[0] in macrotable)) {
-                return expand(macrotable[x[0]].apply(null, rest(x)), toplevel) // (m arg...) 
+            else if (x[0] === sym['defmacro']) {
+                require(x, toplevel, 'defmacro only allowed at top level');
+                require(x, length(x) == 3) // (defmacro v proc)
+                var v = x[1];
+                require(x, isSym(v), 'can define only a symbol')
+                var proc = evaluate(expand(x[2]));
+                require(x, isfunction(proc), 'macro must be a procedure');
+                macros.define(v, proc);
+                return;
             } 
-            else { //        => macroexpand if m isa macro
+            else if (isSym(x[0]) && (macros.isMacro(x[0]))) { // => macroexpand if m isa macro
+                return expand(macros.load(x[0]).apply(null, rest(x)), toplevel) // (m arg...) 
+            } 
+            else {
                 return map(x, expand) // (f arg...) => expand each
             }
         }
@@ -311,10 +239,10 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 require(x, length(x) >= 2);
                 list = x[1];
             }
-            var config = map(list, function(item) {
+            var sigs = map(list, function(item) {
                 var vars = item[0];
                 require(x, all(vars, function(v) {
-                    return issymbol(v);
+                    return isSym(v);
                 }), 'expected symbols in args list');
                 
                 var body = item.slice(1);
@@ -330,7 +258,7 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 }
                 return ret;
             });
-            return [x[0], config]
+            return [x[0], sigs]
         }
         
         function expandSyntaxQuote(x, gensyms) {
@@ -350,7 +278,7 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                 var gs = gensyms[pref];
                 if (!gs) {
                     var gs0 = pref + (Math.random() * 1001 | 0);
-                    gs = new Symbol(gs0);
+                    gs = createSym(gs0);
                     gensyms[pref] = gs;
                 }
                 return [sym.quote, gs];
@@ -378,7 +306,7 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     //                 if (!line.length)
                     //                     line = lines.shift();
                     if (line == undefined)
-                        return EOF;
+                        return sym.EOF;
                     // see https://regex101.com/#javascript
                     // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
                     
@@ -400,10 +328,6 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     ret = readBrackets([], ')');
                     return ret;
                 } 
-                //             else if (token == '"') {
-                //                 ret = readBrackets([], '"');
-                //                 return ret.join(' ');
-                //             } 
                 else if (token == '[') {
                     ret = readBrackets(new Vector(), ']');
                     return ret;
@@ -426,11 +350,11 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     throw new SyntaxError('unexpected ' + token)
                 else if (token in quotes)
                     return [quotes[token], read(tokzer)]
-                else if (token == EOF)
+                else if (token == sym.EOF)
                     throw new SyntaxError('unexpected EOF in list')
                 else {
-                    var x = atom(token);
-                    if (issymbol(x)) {
+                    var x = createAtom(token);
+                    if (isSym(x)) {
                         var s = String(x);
                         if (s.slice(-1) == '#')
                             return [sym.autogensym, s.slice(0, -1)]
@@ -450,61 +374,14 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
             }
             
             var token1 = tokzer();
-            return token1 == EOF ? EOF : readAhead(token1);
-        }
-        
-        function atom(token) {
-            if (token == 'true')
-                return true
-            else if (token == 'false')
-                return false
-            else if (token[0] == '"')
-                return token.slice(1, -1);
-            else if (!isNaN(token))
-                return Number(token); //Cast to number
-            else if (token[0] == ':')
-                return new Keyword(token.slice(1));
-            else
-                return createSym(token);
-        }
-        
-        function require(x, predicate, msg) {
-            if (!existy(msg))
-                msg = 'wrong length';
-            if (!predicate)
-                throw new SyntaxError(tostring(x) + ': ' + msg);
+            return token1 == sym.EOF ? sym.EOF : readAhead(token1);
         }
 
         ////
         
-        function initSymbols() {
-            sym = types.newDict();
-            
-            EOF = createSym('EOF');
-            
-            ['quote', 'if', 'or', 'set!', 'define', 'lambda', 'do', 'define-macro', 
-                'syntaxquote', 'unquote', 'unquotesplice', 'autogensym', 
-                'append', 'cons', 'let', 'fn', 'list']
-            .forEach(function(s) {
-                createSym(s);
-            });
-            
-            quotes = {
-                '\'': sym.quote,
-                '`': sym.syntaxquote,
-                '~': sym.unquote,
-                '~@': sym.unquotesplice,
-            }
-            
-            each(['fn'], function(s) {
-                createSym(s);
-            });
-        
-        }
-        
         function initGlobals() {
             
-            globalEnv = createEnv([], [], null);
+            globalEnv = createEnv1({}, null);
             
             var basics = {
                 
@@ -577,10 +454,10 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
                     return proc.apply(null, args);
                 },
                 'eval': function(x) {
-                    return evaluate(x, output);
+                    return evaluate(x, utils.output);
                 },
                 'display': function(x) {
-                    output.log(isstring(x) ? x : tostring(x));
+                    utils.output.log(isstring(x) ? x : tostring(x));
                 },
                 'call/cc': callcc,
 
@@ -604,45 +481,8 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
         }
         
         function equal(a, b) {
-            //cast String, Symbol and Keyword strings to primitive string
+            //cast String, Sym and Keyword strings to primitive string
             return (isstring(a) && isstring(b)) ? String(a) === String(b) : a === b;
-        }
-        
-        function initMacros() {
-            macrotable = types.newDict();
-            macrotable['let'] = _let;
-            evaluate(parse(
-            '(do                                                   \n' + 
-            '(define-macro and (lambda args                           \n' + 
-            '   (if (null? args) true                                   \n' + 
-            '       (if (= (length args) 1) (first args)                \n' + 
-            '           `(if ~(first args) (and ~@(rest args)) false)))))   \n' + 
-            ')                                                        \n'
-            ));
-            evaluate(parse(
-            '(do                                                   \n' + 
-            '(define-macro or (lambda args                           \n' + 
-            '   (if (null? args) true                                   \n' + 
-            '       (if (= (length args) 1) (first args)                \n' + 
-            '           `(if ~(not (first args)) (or ~@(rest args)) false)))))   \n' + 
-            ')                                                        \n'
-            ));
-        }
-        
-        function _let() {
-            var args = argarray(arguments);
-            var x = cons(sym.let, args);
-            require(x, length(args) > 1);
-            var bindings = args[0];
-            var body = rest(args);
-            require(x, all(map(bindings, function(b) {
-                return islist(b) && length(b) == 2 && issymbol(b[0]);
-            }, "illegal binding list")));
-            var uz = unzip(bindings);
-            var vars = uz[0];
-            var vals = uz[1];
-            var f = [[sym.lambda, vars].concat(map(body, expand))].concat(map(vals, expand));
-            return f;
         }
         
         function callcc(func) {
@@ -661,32 +501,14 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
             }
         }
         
-        function createSym(s) {
-            if (!(s in sym)) {
-                var sy = new Symbol(s);
-                sym[s] = sy;
-            }
-            return sym[s];
-        }
-        
-        function createEnv(params, args, outer) {
+        function createEnv1(dict, outer) {
             var env = {
                 __outer: outer,
             };
-            if (issymbol(params))
-                envDefine(env, params, args);
-            else {
-                if (length(args) != length(params)) {
-                    throw new SyntaxError('Expected ' + length(params) + 
-                    ' args, got ' + length(args) + ' args');
-                }
-                var dict = zipobject(map(params, function(symbol) {
-                    return symbol;
-                }), args);
-                envAssign(env, dict);
-            }
+            envAssign(env, dict);
             return env;
         }
+        
         
         function findEnv(env, v) {
             if (v in env)
@@ -712,55 +534,7 @@ jex.service('kluje', ['funk', 'macros', 'types'], function(funk, macros, types) 
             assign(env, dict);
         }
 
-        ////
-        
-        function islist(x) {
-            return isarray(x);
-        }
-        
-        function isnonemptylist(x) {
-            return islist(x) && x.length;
-        }
-        
-        function issymbol(obj) {
-            return obj instanceof Symbol;
-        }
-        
-        function isvector(x) {
-            return x instanceof Vector;
-        }
-        
-        function iskeyword(x) {
-            return x instanceof Keyword;
-        }
-        
-        function tostring(x) {
-            if (x === true)
-                return 'true'
-            else if (x === false)
-                return 'false'
-            else if (iskeyword(x))
-                return String(x)
-            else if (issymbol(x))
-                return String(x)
-            else if (isNaN(x)) {
-                if (isstring(x) && !x.type)
-                    return '"' + x + '"';
-                else if (isvector(x))
-                    return '[' + map(x, tostring).join(' ') + ']'
-                else if (islist(x))
-                    return '(' + map(x, tostring).join(' ') + ')'
-                else if (isobject(x))
-                    return '{' + map(funk.keys(x), function(key) {
-                        var value = x[key];
-                        return String(atom(key)) + ' ' + tostring(value);
-                    }).join(' ') + '}'
-                else
-                    return String(x);
-            } 
-            else {
-                return x;
-            }
-        }
+    ////
+    
     }, libkeys);
 });
