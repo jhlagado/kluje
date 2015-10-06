@@ -5,10 +5,13 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
     return {argarray: argarray,
         argarray: argarray,
         assign: assign,
+        contains: contains,
         destructure: destructure,
         each: each,
         every: every,
+        length: length,
         require: require,
+        startswith: startswith,
         unzip: unzip,
         zipobject: zipobject,
         output: console,
@@ -31,6 +34,22 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         return obj;
     }
     
+    function contains(x, y) {
+        return x && x.indexOf && x.indexOf(y) != -1
+    }
+    
+    function destructure(keys, values, variadic) {
+        var dict = types.newDict();
+        if (variadic) {
+            var vl = keys.length - 1;
+            values = values.slice(0, vl).concat([values.slice(vl)]);
+        }
+        if (keys.length !== values.length) {
+            throw new RuntimeError('destructure: mismatch in number of keys and values')
+        }
+        return zipobject(keys, values);
+    }
+    
     function each(x, f) {
         if (!x && !f)
             return;
@@ -47,16 +66,9 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         }
     }
     
-    function destructure(keys, values, variadic) {
-        var dict = types.newDict();
-        if (variadic) {
-            var vl = keys.length - 1;
-            values = values.slice(0, vl).concat([values.slice(vl)]);
-        }
-        if (keys.length !== values.length) {
-            throw new RuntimeError('destructure: mismatch in number of keys and values')
-        }
-        return zipobject(keys, values);
+    function length(x) {
+        if (!_.isnull(x) && ('length' in x))
+            return x.length;
     }
     
     function require(x, predicate, msg) {
@@ -65,13 +77,19 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         if (!predicate)
             throw new types.SyntaxError(types.tostring(x) + ': ' + msg);
     }
+    
+    function startswith(string, target) {
+        return string.indexOf(target) == 0;
+    }
+    
     function unzip(array) {
         if (_.isempty(array)) {
             return [];
         }
         var length = 0;
         array = array.reduce(function(acc, item) {
-            if (_.iscoll(item)) acc.push(item);
+            if (_.iscoll(item))
+                acc.push(item);
             return acc;
         }, []);
         var length = array.reduce(function(acc, item) {

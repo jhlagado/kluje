@@ -13,8 +13,8 @@ jex.service('funcs', [], function() {
         isnull: isnull,
         issimple: issimple,
         isstring: isstring,
-        length: length,
         partition: partition,
+        pick: pick,
         rest: rest,
         take: take,
     }
@@ -28,8 +28,7 @@ jex.service('funcs', [], function() {
     }
     
     function first(a) {
-        if (length(a))
-            return a[0];
+        return a[0];
     }
     
     function isarray(x) {
@@ -41,9 +40,9 @@ jex.service('funcs', [], function() {
     }
     
     function isempty(x) {
-        return length(x) == 0;
+        return iscoll(x) && x.length == 0;
     }
-
+    
     function isnull(x) {
         return x == null; //casts undefined as null
     }
@@ -64,20 +63,23 @@ jex.service('funcs', [], function() {
         return type == 'number' || type == 'boolean' || type == 'string';
     }
     
-    function length(x) {
-        if (!isnull(x) && ('length' in x))
-            return x.length;
-    }
-    
     function partition(n, coll) {
         if (iscoll(coll)) {
             var s = coll;
             var p = take(n, s);
-            if (length(p) == n) {
+            if (p.length == n) {
                 var p1 = partition(n, drop(n, s));
                 return cons(p, p1);
             }
         }
+    }
+    
+    function pick(object, keys) {
+        var result = keys.reduce(function(acc, key) {
+            acc[key] = object[key];
+            return acc;
+        }, {});
+        return result;
     }
     
     function rest(x) {

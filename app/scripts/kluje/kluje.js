@@ -1,6 +1,7 @@
 'use strict';
 
-jex.service('kluje', ['funk', 'macros', 'types', 'utils'], function(funk, macros, types, utils) {
+jex.service('kluje', ['evaluator', 'expander', 'funk', 'macros', 'types', 'utils', 'parser'], 
+function(evaluator, expander, funk, macros, types, utils, parser) {
     
     var libkeys = (
 
@@ -39,21 +40,15 @@ jex.service('kluje', ['funk', 'macros', 'types', 'utils'], function(funk, macros
         initGlobals();
         
         return {
-            
-            name: 'kluje',
-            version: '0.0.0',
-            
             run: run,
-            parse: parse,
-            evaluate: evaluate,
-            expand: expand,
         }
         
         
         function run(expression) {
             var s = expression; //.replace(/\n/g, ' '); //strip \n
-            var p = parse(s);
-            var e = evaluate(p);
+            var p = parser.parse(s);
+            var x = expander.expand(p)
+            var e = evaluator.evaluate(x);
             return e;
         }
         
@@ -118,7 +113,7 @@ jex.service('kluje', ['funk', 'macros', 'types', 'utils'], function(funk, macros
                         
                         var dict = utils.destructure(arity.vars, argarray(arguments), arity.variadic);
                         return evaluate(arity.exp, createEnv1(dict, env));
-                        
+                    
                     }
                     return f;
                 } 

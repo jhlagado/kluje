@@ -1,6 +1,6 @@
-jex.service('testdata', ['funk', 'types'], function(funk, types) {
+jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbols) {
     
-    var names = ['isarray', 'isfunction', 'isequal'];
+    var names = ['isarray', 'isfunction', 'isequal' ];
     return jex.inject(funk, function(isarray, isfunction, isequal) {
 
         return {
@@ -12,7 +12,7 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
                 {
                     test: '(quote "x")', 
                     expect: function(data, result){
-                        return (result[1] == result[3]); 
+                        return (result && result[1] == result[3]); 
                     }
                 }, 
                 {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
@@ -61,7 +61,7 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
                         return isarray(result) && !result.length;
                     }
                 }, 
-                {test: '\'x', expect:types.createSym('x')},
+                {test: '\'x', expect: symbols.createSym('x')},
                 {
                     test: '{:a 2}', 
                     expect: function(data, result){
@@ -78,7 +78,7 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
                 {
                     test: '`(1 x# 4 x#)', 
                     expect: function(data, result){
-                        return (result[1] == result[3]); 
+                        return (result && result[1] == result[3]); 
                     }
                 }, 
                 {
@@ -154,11 +154,11 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
                 {test: '(unless (= 2 (+ 1 1)) (display 2) 3 4)', expect:undefined},
                 {test: '(unless (= 4 (+ 1 1)) (display 2) (display "\\n") 3 4)', expect:4},
                 {test: '(quote x)', expect:expectSym('x')}, 
-                {test: '(quote (1 2 three))', expect:[1, 2, types.createSym('three')]}, 
-                {test: '\'(one 2 3)', expect:[types.createSym('one'), 2, 3]},
+                {test: '(quote (1 2 three))', expect:[1, 2, symbols.createSym('three')]}, 
+                {test: '\'(one 2 3)', expect:[symbols.createSym('one'), 2, 3]},
                 {test: '(define L (list 1 2 3))', expect:undefined},
-                {test: '`(testing ~@L testing)', expect:[types.createSym('testing'),1,2,3,types.createSym('testing')]},
-                {test: '`(testing ~L testing)', expect:[types.createSym('testing'),[1,2,3],types.createSym('testing')]},
+                {test: '`(testing ~@L testing)', expect:[symbols.createSym('testing'),1,2,3,symbols.createSym('testing')]},
+                {test: '`(testing ~L testing)', expect:[symbols.createSym('testing'),[1,2,3],symbols.createSym('testing')]},
                 {test: '`~@L', expect:expectSyntaxError},
 
                 {test: '\'(1 ;test comments \'          \n' +
@@ -167,7 +167,7 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
                 '3) ; final comment          \n',
                 expect:[1,2,3]},
 
-                {test: '(quote (testing 1 (2.0) -3.14e159))',expect: [types.createSym('testing'), 1, [2.0], -3.14e159]}, 
+                {test: '(quote (testing 1 (2.0) -3.14e159))',expect: [symbols.createSym('testing'), 1, [2.0], -3.14e159]}, 
                 {test: '(+ 2 2)',expect: 4}, 
                 {test: '(+ (* 2 100) (* 1 10))',expect: 210}, 
                 {test: '(if (> 6 5) (+ 1 1) (+ 2 2))',expect: 2}, 
@@ -297,7 +297,7 @@ jex.service('testdata', ['funk', 'types'], function(funk, types) {
 
         function expectSym(x){
             return function(data, result, error){
-                return result && types.isSym(result) && 
+                return result && symbols.isSym(result) && 
                 result.toString() == x;
             }
         }

@@ -1,54 +1,18 @@
 'use strict';
 
-jex.service('types', ['funcs', 'utils'], function(_, utils) {
-    
-    var sym = newDict();
+jex.service('types', ['funcs', 'symbols'], function(_, symbols) {
     
     function newDict(init) {
         var dict = Object.create(null);
-        return init ? utils.assign(dict, init) : dict;
+        if (init) {
+            Object.keys(init).reduce(function(acc, key){
+                acc[key] = init[key];
+                return acc
+            },dict);
+        }
+        return dict;
     }
 
-    //Sym
-    function Sym(s) {
-        String.call(this, s);
-        this.s = s.valueOf();
-    }
-    
-    Sym.prototype = Object.create(String.prototype);
-    Sym.prototype.toString = function() {
-        return this.s;
-    }
-    Sym.prototype.valueOf = function() {
-        return this.s;
-    }
-    
-    sym.EOF = createSym('EOF');
-    
-    ['quote', 'if', 'or', 'set!', 'define', 'do', 'define-macro', 
-        'syntaxquote', 'unquote', 'unquotesplice', 'autogensym', 
-        'append', 'cons', 'let', 'fn', 'list']
-    .forEach(function(s) {
-        createSym(s);
-    });
-    
-    utils.each(['fn'], function(s) {
-        createSym(s);
-    });
-    
-    function createSym(s) {
-        if (!(s in sym)) {
-            var sy = new Sym(s);
-            sym[s] = sy;
-        }
-        return sym[s];
-    }
-    
-    function isSym(obj) {
-        return obj instanceof Sym;
-    }
-    
-    
     function SyntaxError(msg) {
         this.msg = 'SyntaxError: ' + msg;
         utils.output.error(msg);
@@ -111,7 +75,7 @@ jex.service('types', ['funcs', 'utils'], function(_, utils) {
             return 'false'
         else if (iskeyword(x))
             return String(x)
-        else if (isSym(x))
+        else if (symbols.isSym(x))
             return String(x)
         else if (isNaN(x)) {
             if (_.isstring(x) && !x.type)
@@ -147,23 +111,12 @@ jex.service('types', ['funcs', 'utils'], function(_, utils) {
         else if (!isNaN(token))
             return Number(token); //Cast to number
         else
-            return createSym(token);
+            return symbols.createSym(token);
     }
     
     return {
         
         newDict: newDict,
-        
-        Sym: Sym,
-        createSym: createSym,
-        isSym: isSym,
-        sym: sym,
-        quotes: {
-            '\'': sym.quote,
-            '`': sym.syntaxquote,
-            '~': sym.unquote,
-            '~@': sym.unquotesplice,
-        },
         
         SyntaxError: SyntaxError,
         RuntimeError: RuntimeError,
