@@ -64,7 +64,7 @@ jex.service('funcs', [], function() {
                 } 
                 else if (isobject(a)) 
                 {
-                    if (length(getkeys(a)) == length(getkeys(b))) {
+                    if (Object.keys(a).length == Object.keys(b).length) {
                         var retval;
                         for (var lkey in a) {
                             retval = (lkey in b) && isequal(a[lkey], b[lkey], maxdepth - 1);

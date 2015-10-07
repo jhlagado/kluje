@@ -1,8 +1,5 @@
-jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbols) {
+jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols) {
     
-    var names = ['isarray', 'isfunction', 'isequal' ];
-    return jex.inject(funk, function(isarray, isfunction, isequal) {
-
         return {
             tests: [
                 {test: '(or true false)',expect: true}, 
@@ -54,13 +51,13 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                 {
                     test: '(fn [a] a)', 
                     expect: function(data, result){
-                        return isfunction(result) && result(1) == 1;
+                        return _.isfunction(result) && result(1) == 1;
                     }
                 }, 
                 {
                     test: '()', 
                     expect: function(data, result){
-                        return isarray(result) && !result.length;
+                        return _.isarray(result) && !result.length;
                     }
                 }, 
                 {test: '\'x', expect: symbols.createSym('x')},
@@ -68,7 +65,7 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                     test: '{:a 2}', 
                     expect: function(data, result){
                         return (result instanceof Object) && 
-                        isequal(result, {':a':2})
+                        _.isequal(result, {':a':2})
                     }
                 }, 
                 {
@@ -87,21 +84,21 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                     test: '`(1 ~@(list 2 3) 4)', 
                     expect: function(data, result){
                         return (result instanceof Array) && 
-                        isequal(result, [1,2,3,4])
+                        _.isequal(result, [1,2,3,4])
                     }
                 }, 
                 {
                     test: '`(1 ~2 3)', 
                     expect: function(data, result){
                         return (result instanceof Array) && 
-                        isequal(result, [1,2,3])
+                        _.isequal(result, [1,2,3]);
                     }
                 }, 
                 {
                     test: '`(1 2 3)', 
                     expect: function(data, result){
                         return (result instanceof Array) && 
-                        isequal(result, [1,2,3])
+                        _.isequal(result, [1,2,3])
                     }
                 }, 
                 {
@@ -120,14 +117,14 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                     test: '{"a" 2}', 
                     expect: function(data, result){
                         return (result instanceof Object) && 
-                        isequal(result, {a:2})
+                        _.isequal(result, {a:2})
                     }
                 }, 
                 {
                     test: "[1 2]", 
                     expect: function(data, result){
                         return (types.isvector(result)) && 
-                        isequal(result.toArray(), [1,2])
+                        _.isequal(result.toArray(), [1,2])
                     }
                 }, 
                 {test: ",',(,1, 2, 7,),;testing , see how it goes",expect: [1, 2, 7]}, 
@@ -309,8 +306,6 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
         function expectRuntimeError(data, result, error) {
             return error && error.constructor == types.RuntimeError;
         }
-
-    }, names);
 
 });
 

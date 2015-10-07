@@ -1,4 +1,4 @@
-jex.use(['funk', 'kluje','types'], function(funk, kluje,types) {
+jex.use(['kluje','types'], function(kluje,types) {
     
     angular.module("klujeRepl", [])
     

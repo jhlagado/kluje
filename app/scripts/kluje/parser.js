@@ -1,6 +1,6 @@
 'use strict';
 
-jex.service('parser', ['funcs', 'symbols', 'types', 'utils'], 
+jex.service('parser', ['funcs', 'symbols', 'types', 'utils','kluje'], 
 function(funcs, symbols, types, utils) {
     
     var sym = symbols.sym;
