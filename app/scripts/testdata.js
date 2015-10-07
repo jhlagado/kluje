@@ -2,6 +2,7 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
+                {test: '`~@L', expect:expectSyntaxError},
                 {test: '(or true false)',expect: true}, 
                 {test: '(and true false)',expect: false}, 
                 {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
@@ -156,7 +157,6 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(define L (list 1 2 3))', expect:undefined},
                 {test: '`(testing ~@L testing)', expect:[symbols.createSym('testing'),1,2,3,symbols.createSym('testing')]},
                 {test: '`(testing ~L testing)', expect:[symbols.createSym('testing'),[1,2,3],symbols.createSym('testing')]},
-                {test: '`~@L', expect:expectSyntaxError},
 
                 {test: '\'(1 ;test comments \'          \n' +
                 ';skip this line             \n' +

@@ -3,7 +3,7 @@
 jex.service('symbols', [], function() {
     
     var sym = {};
-    
+
     //Sym
     function Sym(s) {
         String.call(this, s);
@@ -18,12 +18,11 @@ jex.service('symbols', [], function() {
         return this.s;
     }
     
-    sym.EOF = createSym('EOF');
-    
-    ['quote', 'if', 'or', 'set!', 'define', 'do', 'define-macro', 
-        'syntaxquote', 'unquote', 'unquotesplice', 'autogensym', 
-        'append', 'cons', 'let', 'fn', 'list']
-    .forEach(function(s) {
+    var a = [
+        'quote', 'set!', 'define', 'do', 'syntaxquote', 'unquote', 
+        'unquotesplice', 'autogensym', 'append', 'cons', 'let', 'fn'
+    ]
+    a.forEach(function(s) {
         createSym(s);
     });
     
@@ -39,7 +38,7 @@ jex.service('symbols', [], function() {
             '~': sym.unquote,
             '~@': sym.unquotesplice,
         },
-        
+    
     };
     
     function createSym(s) {
@@ -53,5 +52,5 @@ jex.service('symbols', [], function() {
     function isSym(obj) {
         return obj instanceof Sym;
     }
-    
+
 });

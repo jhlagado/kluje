@@ -3,6 +3,7 @@
 jex.service('parser', ['funcs', 'symbols', 'types', 'utils','kluje'], 
 function(funcs, symbols, types, utils) {
     
+    var EOF = {};
     var sym = symbols.sym;
     
     return {
@@ -16,15 +17,11 @@ function(funcs, symbols, types, utils) {
     }
     
     function tokzer(s) {
-        //var lines = s.split('\n');
-        //         var lines = [s];
         var line = s;
         return function() {
             while (true) {
-                //                 if (!line.length)
-                //                     line = lines.shift();
                 if (line == undefined)
-                    return sym.EOF;
+                    return EOF;
                 // see https://regex101.com/#javascript
                 // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
                 
@@ -68,7 +65,7 @@ function(funcs, symbols, types, utils) {
                 throw new SyntaxError('unexpected ' + token)
             else if (token in symbols.quotes)
                 return [symbols.quotes[token], read(tokzer)]
-            else if (token == sym.EOF)
+            else if (token === EOF)
                 throw new SyntaxError('unexpected EOF in list')
             else {
                 var x = types.createAtom(token);
@@ -92,7 +89,7 @@ function(funcs, symbols, types, utils) {
         }
         
         var token1 = tokzer();
-        return token1 == sym.EOF || readAhead(token1);
+        return token1 === EOF || readAhead(token1);
     }
 
 });

@@ -1,10 +1,10 @@
 'use strict';
 
-jex.service('evaluator', ['funcs', 'output', 'symbols', 'types', 'utils'], 
-function(_, output, symbols, types, utils) {
+jex.service('evaluator', ['environ','funcs', 'output', 'symbols', 'types', 'utils'], 
+function(environ, _, output, symbols, types, utils) {
     
     var sym = symbols.sym;
-    var globalEnv;
+    var globalEnv = environ.create({}, null);
     
     initGlobals();
     
@@ -23,27 +23,27 @@ function(_, output, symbols, types, utils) {
         while (true) {
             
             if (symbols.isSym(x)) // v reference
-                return envGet(env, x);
+                return environ.get(env, x);
             else if (!types.isnonemptylist(x)) // constant literal
                 return x
             
-            else if (x[0] === sym.quote) // (quote exp)
+            else if (x[0] == 'quote') // (quote exp)
                 return x[1];
-            else if (x[0] === sym.keyword) // (keyword exp)
+            else if (x[0] == 'keyword') // (keyword exp)
                 return new types.Keyword(x[1]);
-            else if (x[0] === sym.if) // (if test conseq alt)
+            else if (x[0] == 'if') // (if test conseq alt)
                 x = evaluate(x[1], env) ? x[2] : x[3];
-            else if (x[0] === sym['set!']) { // (set! var exp)
+            else if (x[0] == 'set!') { // (set! var exp)
                 var v = x[1];
-                envSet(env, v, evaluate(x[2], env));
+                environ.set(env, v, evaluate(x[2], env));
                 return;
             } 
-            else if (x[0] === sym.define) { // (define var exp)
+            else if (x[0] == 'define') { // (define var exp)
                 var v = x[1];
-                envDefine(env, v, evaluate(x[2], env));
+                environ.define(env, v, evaluate(x[2], env));
                 return;
             } 
-            else if (x[0] === sym.fn) { // (fn [arg1 arg2...] exp)
+            else if (x[0] == 'fn') { // (fn [arg1 arg2...] exp)
                 var sigs = x[1];
                 var f = function() {
                     var numargs = arguments.length;
@@ -66,12 +66,12 @@ function(_, output, symbols, types, utils) {
                         throw new types.RuntimeError(_.isstring(x) + 'no matching argument signature found')
                     
                     var dict = utils.destructure(sig.vars, utils.argarray(arguments), sig.variadic);
-                    return evaluate(sig.exp, createEnv1(dict, env));
+                    return evaluate(sig.exp, environ.create(dict, env));
                 
                 }
                 return f;
             } 
-            else if (x[0] === sym.do) { // (do exp+)
+            else if (x[0] == 'do') { // (do exp+)
                 x.slice(1, -1).forEach(function(exp) {
                     evaluate(exp, env)
                 });
@@ -95,8 +95,6 @@ function(_, output, symbols, types, utils) {
     }
     
     function initGlobals() {
-        
-        globalEnv = createEnv1({}, null);
         
         var basics = {
             
@@ -192,7 +190,7 @@ function(_, output, symbols, types, utils) {
             'ceil', 'cos', 'exp', 'floor', 'log', 'max', 'min', 'pow', 
             'random', 'round', 'sin', 'sqrt', 'tan']);
         
-        return envAssign(globalEnv, utils.assign(types.newDict(), basics, math));
+        return environ.assign(globalEnv, utils.assign(types.newDict(), basics, math));
     }
     
     function equal(a, b) {
@@ -216,37 +214,4 @@ function(_, output, symbols, types, utils) {
         }
     }
     
-    function createEnv1(dict, outer) {
-        var env = {
-            __outer: outer,
-        };
-        envAssign(env, dict);
-        return env;
-    }
-    
-    
-    function findEnv(env, v) {
-        if (v in env)
-            return env;
-        else if (env.__outer)
-            return findEnv(env.__outer, v);
-        throw new types.RuntimeError('Could not lookup ' + v);
-    }
-    
-    function envGet(env, v) {
-        return findEnv(env, v)[v];
-    }
-    
-    function envDefine(env, v, value) {
-        env[v] = value;
-    }
-    
-    function envSet(env, v, value) {
-        return findEnv(env, v)[v] = value;
-    }
-    
-    function envAssign(env, dict) {
-        utils.assign(env, dict);
-    }
-
 });

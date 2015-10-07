@@ -17,23 +17,23 @@ function(evaluator, _, macros, symbols, types, utils) {
             return x;
         }
         utils.require(x, !_.isempty(x)) // () => Error 
-        if (x[0] === sym.quote) { // (quote exp)
+        if (x[0] == 'quote') { // (quote exp)
             utils.require(x, utils.length(x) == 2)
             return x;
         } 
-        else if (x[0] === sym.if) {
+        else if (x[0] == 'if') {
             if (utils.length(x) == 3) {
                 x.length = 4
             } // (if t c) => (if t c None)
             utils.require(x, utils.length(x) == 4)
             return x.map(expand)
         } 
-        else if (x[0] === sym['set!']) {
+        else if (x[0] == 'set!') {
             utils.require(x, utils.length(x) == 3);
             utils.require(x, symbols.isSym(x[1]), 'can set! only a symbol');
             return [sym['set!'], x[1], expand(x[2])]
         } 
-        else if (x[0] === sym.define || x[0] === sym['define-macro']) {
+        else if (x[0] == 'define' || x[0] == 'define-macro') {
             utils.require(x, utils.length(x) >= 3)
             var def = x[0];
             var v = x[1];
@@ -47,7 +47,7 @@ function(evaluator, _, macros, symbols, types, utils) {
                 utils.require(x, utils.length(x) == 3) // (define non-var/list exp) => Error
                 utils.require(x, symbols.isSym(v), 'can define only a symbol')
                 var exp = expand(x[2])
-                if (def == sym['define-macro']) {
+                if (def == 'define-macro') {
                     utils.require(x, toplevel, 'define-macro only allowed at top level');
                     var proc = evaluator.evaluate(exp);
                     utils.require(x, _.isfunction(proc), 'macro must be a procedure');
@@ -57,7 +57,7 @@ function(evaluator, _, macros, symbols, types, utils) {
                 return [sym.define, v, exp]
             }
         } 
-        else if (x[0] === sym.do) {
+        else if (x[0] == 'do') {
             if (utils.length(x) == 1)
                 return undefined; // (do) => None
             else {
@@ -66,14 +66,14 @@ function(evaluator, _, macros, symbols, types, utils) {
                 });
             }
         } 
-        else if (x[0] === sym.fn) { // (fn (x) e1 e2) 
+        else if (x[0] == 'fn') { // (fn (x) e1 e2) 
             return expandFn(x)
         } 
-        else if (x[0] === sym.syntaxquote) { // `x => expandSyntaxQuote(x)
+        else if (x[0] == 'syntaxquote') { // `x => expandSyntaxQuote(x)
             utils.require(x, utils.length(x) == 2)
             return expandSyntaxQuote(x[1])
         } 
-        else if (x[0] === sym['defmacro']) {
+        else if (x[0] == 'defmacro') {
             utils.require(x, toplevel, 'defmacro only allowed at top level');
             utils.require(x, utils.length(x) == 3) // (defmacro v proc)
             var v = x[1];
@@ -131,12 +131,13 @@ function(evaluator, _, macros, symbols, types, utils) {
         if (!types.isnonemptylist(x)) {
             return [sym.quote, x];
         }
-        utils.require(x, x[0] !== sym.unquotesplice, "can't splice here")
+        // == to cast before equate then ! to negate
+        utils.require(x, !(x[0] == 'unquotesplice'), "can't splice here:")
         if (x[0] == sym.unquote) {
             utils.require(x, utils.length(x) == 2);
             return x[1];
         } 
-        else if (x[0] == sym.autogensym) {
+        else if (x[0] == 'autogensym') {
             utils.require(x, utils.length(x) == 2);
             var pref = x[1];
             var gs = gensyms[pref];
@@ -147,7 +148,7 @@ function(evaluator, _, macros, symbols, types, utils) {
             }
             return [sym.quote, gs];
         } 
-        else if (types.isnonemptylist(x[0]) && x[0][0] == sym.unquotesplice) {
+        else if (types.isnonemptylist(x[0]) && x[0][0] == 'unquotesplice') {
             utils.require(x[0], utils.length(x[0]) == 2)
             return [sym.append, x[0][1], expandSyntaxQuote(_.rest(x))]
         } 
