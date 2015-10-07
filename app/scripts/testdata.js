@@ -5,6 +5,9 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
 
         return {
             tests: [
+                {test: '(or true false)',expect: true}, 
+                {test: '(and true false)',expect: false}, 
+                {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
                 {
                     test: '(let [x 1] x)',
                     expect: 1,
@@ -15,7 +18,6 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                         return (result && result[1] == result[3]); 
                     }
                 }, 
-                {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
                 {
                     test: '"12 \n3"', 
                     expect: function(data, result){
@@ -143,8 +145,6 @@ jex.service('testdata', ['funk', 'types','symbols'], function(funk, types, symbo
                 {test: "`(1 2 ~(+ 3 4))",expect: [1, 2, 7]}, 
                 {test: "`(1 ~@(list 1 1 1) 1)",expect: [1, 1, 1, 1, 1]}, 
 
-                {test: '(or true false)',expect: true}, 
-                {test: '(and true false)',expect: false}, 
 
                 {test: '(zip (list 1 2 3 4) (list 5 6 7 8))',expect: [[1, 5], [2, 6], [3, 7], [4, 8]]}, 
                 {test: '(let [a 1 b 2] (+ a b))', expect:3},

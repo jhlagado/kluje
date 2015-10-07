@@ -14,7 +14,6 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         startswith: startswith,
         unzip: unzip,
         zipobject: zipobject,
-        output: console,
     }
     
     function argarray(args) {

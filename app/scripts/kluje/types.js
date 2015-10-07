@@ -1,31 +1,31 @@
 'use strict';
 
-jex.service('types', ['funcs', 'symbols'], function(_, symbols) {
+jex.service('types', ['funcs', 'symbols', 'output'], function(_, symbols, output) {
     
     function newDict(init) {
         var dict = Object.create(null);
         if (init) {
-            Object.keys(init).reduce(function(acc, key){
+            Object.keys(init).reduce(function(acc, key) {
                 acc[key] = init[key];
                 return acc
-            },dict);
+            }, dict);
         }
         return dict;
     }
-
+    
     function SyntaxError(msg) {
         this.msg = 'SyntaxError: ' + msg;
-        utils.output.error(msg);
+        output.out.error(msg);
     }
     
     function RuntimeError(msg) {
         this.msg = 'RuntimeError: ' + msg;
-        utils.output.error(msg);
+        output.out.error(msg);
     }
     
     function RuntimeWarning(msg) {
         this.msg = 'RuntimeWarning: ' + msg;
-        utils.output.warn(msg);
+        output.out.warn(msg);
     }
 
     //Vector

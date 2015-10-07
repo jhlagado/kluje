@@ -34,7 +34,7 @@
     //factory - function
     function service(name, deps, factory) {
         if (name in services)
-            throw 'Duplicate service: ' + name;
+            console.warn('Duplicate service: ' + name);
         services[name] = {
             deps: deps,
             factory: factory,
@@ -51,8 +51,8 @@
         var service = services[name];
         if (!('value' in service)) {
             service.value = {}; 
-//             if (service.resolving)
-//                 throw 'Circular dependency on self: ' + name;
+            if (service.resolving)
+                throw 'Circular dependency on self: ' + name;
             service.value.__resolving = true;
             var value = use(service.deps, service.factory);
             Object.keys(value).reduce(function(acc,key){

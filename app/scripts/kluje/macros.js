@@ -1,7 +1,7 @@
 'use strict';
 
-jex.service('macros', ['expander','funcs', 'symbols', 'types', 'utils', 'kluje'], 
-function(expander, _, symbols, types, utils, kluje) {
+jex.service('macros', ['evaluator', 'expander', 'funcs', 'parser', 'symbols', 'types', 'utils'], 
+function(evaluator, expander, _, parser, symbols, types, utils) {
     
     var sym = symbols.sym;
     
@@ -25,7 +25,7 @@ function(expander, _, symbols, types, utils, kluje) {
         if (name in macrotable)
             return macrotable[name]
         else if (name in defs) {
-            var value = kluje.evaluate(kluje.parse(defs[name]))
+            var value = evaluator.evaluate(expander.expand(parser.parse(defs[name])));
             return define(name, value);
         }
     }
@@ -49,7 +49,7 @@ function(expander, _, symbols, types, utils, kluje) {
             '           `(if ~(first args) true (or ~@(rest args))))))',
         }
     }
-        
+    
     function _let() {
         var args = utils.argarray(arguments);
         var x = _.cons(sym.let, args);
