@@ -4,6 +4,9 @@ jex.service('expander', ['evaluator', 'funcs', 'macros', 'symbols', 'types', 'ut
 function(evaluator, _, macros, symbols, types, utils) {
     
     var sym = symbols.sym;
+    var special;
+    
+    initSpecial();
     
     return {
         expand: expand,
@@ -17,78 +20,79 @@ function(evaluator, _, macros, symbols, types, utils) {
             return x;
         }
         utils.require(x, !_.isempty(x)) // () => Error 
-        if (x[0] == 'quote') { // (quote exp)
-            utils.require(x, utils.length(x) == 2)
-            return x;
-        } 
-        else if (x[0] == 'if') {
-            if (utils.length(x) == 3) {
-                x.length = 4
-            } // (if t c) => (if t c None)
-            utils.require(x, utils.length(x) == 4)
-            return x.map(expand)
-        } 
-        else if (x[0] == 'set!') {
-            utils.require(x, utils.length(x) == 3);
-            utils.require(x, symbols.isSym(x[1]), 'can set! only a symbol');
-            return [sym['set!'], x[1], expand(x[2])]
-        } 
-        else if (x[0] == 'define' || x[0] == 'define-macro') {
-            utils.require(x, utils.length(x) >= 3)
-            var def = x[0];
-            var v = x[1];
-            var body = x.slice(2);
-            if (types.islist(v) && v) { // (define (f args) body)
-                var fname = v[0];
-                var args = new types.Vector(_.rest(v)); //  => (define f (fn [args] body))
-                return expand([def, fname, [sym.fn, args].concat(body)])
-            } 
-            else {
-                utils.require(x, utils.length(x) == 3) // (define non-var/list exp) => Error
-                utils.require(x, symbols.isSym(v), 'can define only a symbol')
-                var exp = expand(x[2])
-                if (def == 'define-macro') {
-                    utils.require(x, toplevel, 'define-macro only allowed at top level');
-                    var proc = evaluator.evaluate(exp);
-                    utils.require(x, _.isfunction(proc), 'macro must be a procedure');
-                    macros.define(v, proc);
-                    return; //  => None; add v:proc to macro_table
-                }
-                return [sym.define, v, exp]
-            }
-        } 
-        else if (x[0] == 'do') {
-            if (utils.length(x) == 1)
-                return undefined; // (do) => None
-            else {
-                return x.map(function(xi) {
-                    return expand(xi, toplevel)
-                });
-            }
-        } 
-        else if (x[0] == 'fn') { // (fn (x) e1 e2) 
-            return expandFn(x)
-        } 
-        else if (x[0] == 'syntaxquote') { // `x => expandSyntaxQuote(x)
-            utils.require(x, utils.length(x) == 2)
-            return expandSyntaxQuote(x[1])
-        } 
-        else if (x[0] == 'defmacro') {
-            utils.require(x, toplevel, 'defmacro only allowed at top level');
-            utils.require(x, utils.length(x) >= 4) // (defmacro v proc)
-            var name = x[1];
-            utils.require(x, symbols.isSym(name), 'can define only a symbol')
-            var f = [sym.fn].concat(x.slice(2));
-            var proc = evaluator.evaluate(expandFn(f));
-            utils.require(x, _.isfunction(proc), 'macro must be a procedure');
-            macros.define(name, proc);
-            return;
-        } 
+        if (x[0] in special) {
+            return special[x[0]](x, toplevel);
+        }
         else if (symbols.isSym(x[0]) && (macros.isMacro(x[0]))) { // => macroexpand if m isa macro
             return expand(macros.load(x[0]).apply(null, _.rest(x)), toplevel) // (m arg...) 
         } 
         else {
             return x.map(expand) // (f arg...) => expand each
+        }
+    }
+    
+    function initSpecial() {
+        special = {
+            'quote': function(x) { // (quote exp)
+                utils.require(x, utils.length(x) == 2)
+                return x;
+            },
+            'if': function(x) {
+                if (utils.length(x) == 3) {
+                    x.length = 4
+                } // (if t c) => (if t c None)
+                utils.require(x, utils.length(x) == 4)
+                return x.map(expand)
+            },
+            'set!': function(x) {
+                utils.require(x, utils.length(x) == 3);
+                utils.require(x, symbols.isSym(x[1]), 'can set! only a symbol');
+                return [sym['set!'], x[1], expand(x[2])]
+            },
+            'define': function(x) {
+                utils.require(x, utils.length(x) >= 3)
+                var def = x[0];
+                var v = x[1];
+                var body = x.slice(2);
+                if (types.islist(v) && v) { // (define (f args) body)
+                    var fname = v[0];
+                    var args = new types.Vector(_.rest(v)); //  => (define f (fn [args] body))
+                    return expand([def, fname, [sym.fn, args].concat(body)])
+                } 
+                else {
+                    utils.require(x, utils.length(x) == 3) // (define non-var/list exp) => Error
+                    utils.require(x, symbols.isSym(v), 'can define only a symbol')
+                    var exp = expand(x[2])
+                    return [sym.define, v, exp]
+                }
+            },
+            'do': function(x, toplevel) {
+                if (utils.length(x) == 1)
+                    return undefined; // (do) => None
+                else {
+                    return x.map(function(xi) {
+                        return expand(xi, toplevel)
+                    });
+                }
+            },
+            'fn': function(x) { // (fn (x) e1 e2) 
+                return expandFn(x)
+            },
+            'syntaxquote': function(x) { // `x => expandSyntaxQuote(x)
+                utils.require(x, utils.length(x) == 2)
+                return expandSyntaxQuote(x[1])
+            },
+            'defmacro': function(x, toplevel) {
+                utils.require(x, toplevel, 'defmacro only allowed at top level');
+                utils.require(x, utils.length(x) >= 4) // (defmacro v proc)
+                var name = x[1];
+                utils.require(x, symbols.isSym(name), 'can define only a symbol')
+                var f = [sym.fn].concat(x.slice(2));
+                var proc = evaluator.evaluate(expandFn(f));
+                utils.require(x, _.isfunction(proc), 'macro must be a procedure');
+                macros.define(name, proc);
+                return;
+            }
         }
     }
     
@@ -160,5 +164,6 @@ function(evaluator, _, macros, symbols, types, utils) {
             return ret;
         }
     }
+
 
 });
