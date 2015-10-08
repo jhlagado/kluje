@@ -62,7 +62,7 @@ function(environ, _, output, symbols, types, utils) {
                 environ.set(env, v, evaluate(x[2], env));
                 return;
             },
-            'define': function(x, env) { // (define var exp)
+            'def': function(x, env) { // (define var exp)
                 var v = x[1];
                 environ.define(env, v, evaluate(x[2], env));
                 return;

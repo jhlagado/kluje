@@ -137,13 +137,13 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: ",',(,1, 2, 7,),;testing , see how it goes",expect: [1, 2, 7]}, 
 
                 {test: '\
-    (define combine (fn [f]     \n\
+    (def combine (fn [f]     \n\
         (fn [x y]               \n\
             (if (null? x) (quote ()) \n\
                (f (list (first x) (first y)) \n\
                  ((combine f) (rest x) (rest y)))))))\
                  ',expect: undefined}, 
-                {test: '(define zip (combine cons))',expect: undefined}, 
+                {test: '(def zip (combine cons))',expect: undefined}, 
 
                 {test: "'(1 2 7)",expect: [1, 2, 7]}, 
                 {test: "`(1 2 ~(+ 3 4))",expect: [1, 2, 7]}, 
@@ -160,7 +160,7 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(quote x)', expect:expectSym('x')}, 
                 {test: '(quote (1 2 three))', expect:[1, 2, symbols.createSym('three')]}, 
                 {test: '\'(one 2 3)', expect:[symbols.createSym('one'), 2, 3]},
-                {test: '(define L (list 1 2 3))', expect:undefined},
+                {test: '(def L (list 1 2 3))', expect:undefined},
                 {test: '`(testing ~@L testing)', expect:[symbols.createSym('testing'),1,2,3,symbols.createSym('testing')]},
                 {test: '`(testing ~L testing)', expect:[symbols.createSym('testing'),[1,2,3],symbols.createSym('testing')]},
 
@@ -175,32 +175,32 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(+ (* 2 100) (* 1 10))',expect: 210}, 
                 {test: '(if (> 6 5) (+ 1 1) (+ 2 2))',expect: 2}, 
                 {test: '(if (< 6 5) (+ 1 1) (+ 2 2))',expect: 4}, 
-                {test: '(define x 3)',expect: undefined}, 
+                {test: '(def x 3)',expect: undefined}, 
                 {test: 'x',expect: 3}, 
                 {test: '(+ x x)',expect: 6}, 
-                {test: '(do (define x 1) (set! x (+ x 1)) (+ x 1))',expect: 3}, 
+                {test: '(do (def x 1) (set! x (+ x 1)) (+ x 1))',expect: 3}, 
                 {test: '((fn [x] (+ x x)) 5)',expect: 10}, 
-                {test: '(define twice (fn [x] (* 2 x)))',expect: undefined}, 
+                {test: '(def twice (fn [x] (* 2 x)))',expect: undefined}, 
                 {test: '(twice 5)',expect: 10}, 
-                {test: '(define compose (fn [f g] (fn [x] (f (g x)))))',expect: undefined}, 
+                {test: '(def compose (fn [f g] (fn [x] (f (g x)))))',expect: undefined}, 
                 {test: '((compose list twice) 5)',expect: [10]}, 
-                {test: '(define repeat (fn [f] (compose f f)))',expect: undefined}, 
+                {test: '(def repeat (fn [f] (compose f f)))',expect: undefined}, 
                 {test: '((repeat twice) 5)',expect: 20}, 
                 {test: '((repeat (repeat twice)) 5)',expect: 80}, 
-                {test: '(define fact (fn [n] (if (<= n 1) 1 (* n (fact (- n 1))))))',expect: undefined}, 
+                {test: '(def fact (fn [n] (if (<= n 1) 1 (* n (fact (- n 1))))))',expect: undefined}, 
                 {test: '(fact 3)',expect: 6}, 
                 {test: '(fact 50)',expect: 30414093201713378043612608166064768844377641568960512000000000000}, 
-                {test: '(define abs (fn [n] ((if (> n 0) + -) 0 n)))',expect: undefined}, 
+                {test: '(def abs (fn [n] ((if (> n 0) + -) 0 n)))',expect: undefined}, 
                 {test: '(list (abs -3) (abs 0) (abs 3))',expect: [3, 0, 3]}, 
 
-                {test: '(define take (fn [n seq] (if (<= n 0) (quote ()) \n (cons (first seq) (take (- n 1) (rest seq))))))',expect: undefined}, 
+                {test: '(def take (fn [n seq] (if (<= n 0) (quote ()) \n (cons (first seq) (take (- n 1) (rest seq))))))',expect: undefined}, 
                 {test: '(take 2 (list 1 2 3))',expect: [1, 2]}, 
-                {test: '(define drop (fn [n seq] (if (<= n 0) seq (drop (- n 1) (rest seq)))))',expect: undefined}, 
+                {test: '(def drop (fn [n seq] (if (<= n 0) seq (drop (- n 1) (rest seq)))))',expect: undefined}, 
                 {test: '(drop 1 (list 1 2 3))',expect: [2, 3]}, 
-                {test: '(define mid (fn [seq] (/ (length seq) 2)))',expect: undefined}, 
+                {test: '(def mid (fn [seq] (/ (length seq) 2)))',expect: undefined}, 
                 {test: '(mid (list 1 2 3 4))',expect: 2}, 
 
-                {test: '(define riff-shuffle (fn [deck] \n' + 
+                {test: '(def riff-shuffle (fn [deck] \n' + 
                     '(do ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))',expect: undefined}, 
 
                 {test: '(riff-shuffle (list 1 2 3 4 5 6 7 8))',expect: [1, 5, 2, 6, 3, 7, 4, 8]}, 
@@ -208,15 +208,15 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(riff-shuffle (riff-shuffle (riff-shuffle (list 1 2 3 4 5 6 7 8))))',expect: [1, 2, 3, 4, 5, 6, 7, 8]}, 
 
                 {test: '(set! x)',expect:expectSyntaxError}, 
-                {test: '(define 3 4)',expect:expectSyntaxError}, 
+                {test: '(def 3 4)',expect:expectSyntaxError}, 
                 {test: '(quote 1 2)',expect:expectSyntaxError}, 
                 {test: '(if 1 2 3 4)',expect:expectSyntaxError}, 
                 {test: '(fn 3 3)',expect:expectSyntaxError}, 
                 {test: '(fn [x])',expect:expectSyntaxError}, 
-                {test: '(define (twice x) (* 2 x))', expect:undefined}, 
+                {test: '(defn twice [x] (* 2 x))', expect:undefined}, 
                 {test: '(twice 2)', expect:4},
                 {test: '(twice 2 2)', expect:expectRuntimeError},
-                {test: '(define lyst (fn [& items] items))', undefined},
+                {test: '(def lyst (fn [& items] items))', undefined},
                 {test: '(lyst 1 2 3 (+ 2 2))', expect:[1,2,3,4]},
                 {test: '(if 1 2)', expect:2},
                 {test: '(if (= 3 4) 2)', expect:undefined},
@@ -230,27 +230,27 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 '(+ 5 (* 10 (call/cc (fn [escape] (* 100 1))))))) ; 0 levels', expect:1005},
 
 
-                {test: '(define ((account bal) amt) (set! bal (+ bal amt)) bal)', expect:undefined},
-                {test: '(define a1 (account 100))', expect:undefined},
+                {test: '(def ((account bal) amt) (set! bal (+ bal amt)) bal)', expect:undefined},
+                {test: '(def a1 (account 100))', expect:undefined},
                 {test: '(a1 0)', expect:100}, 
                 {test:'(a1 10)', expect:110}, 
                 {test:'(a1 10)', expect:120},
 
                 {test:
-                '(define (newton guess function derivative epsilon)\n' +
-                    '(define guess2 (- guess (/ (function guess) (derivative guess))))\n'+
+                '(def (newton guess function derivative epsilon)\n' +
+                    '(def guess2 (- guess (/ (function guess) (derivative guess))))\n'+
                     '(if (< (abs (- guess guess2)) epsilon) guess2 \n'+
                     '    (newton guess2 function derivative epsilon)))', expect:undefined},
                 {test:
-                '(define (square-root a)\n' +
+                '(def (square-root a)\n' +
                      '(newton 1 (fn [x] (- (* x x) a)) (fn [x] (* 2 x)) 1e-8))', 
                      expect:undefined},
                 {test: '(> (square-root 200.) 14.14213)', expect:true},
                 {test: '(< (square-root 200.) 14.14215)', expect:true},
                 {test: '(= (square-root 200.) (sqrt 200.))', expect:true},
                 {test:
-                '(define (sum-squares-range start end)\n' +
-                '     (define (sumsq-acc start end acc)\n' +
+                '(def (sum-squares-range start end)\n' +
+                '     (def (sumsq-acc start end acc)\n' +
                 '        (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc))))\n' +
                 '     (sumsq-acc start end 0))', expect:undefined},
                 {test: '(sum-squares-range 1 3000)', expect:9004500500}, // Tests tail recursion
@@ -265,9 +265,9 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {name: 'bool false',test: 'false',expect: false}, 
                 {name: 'string',test: '"x"',expect: 'x'}, 
                 {name: 'list',test: '(list 1 2 3)',expect: [1, 2, 3]}, 
-                {name: 'define var',test: '(do (define x 1) x)',expect: 1}, 
+                {name: 'define var',test: '(do (def x 1) x)',expect: 1}, 
                 {
-                    test: '(do (define x "hello") x)',
+                    test: '(do (def x "hello") x)',
                     expect: "hello"
                 }, 
                 {
@@ -291,7 +291,7 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                     expect: 3,
                 }, 
                 {
-                    test: '(do (define x "hi") (set! x "bye") x)',
+                    test: '(do (def x "hi") (set! x "bye") x)',
                     expect: "bye"
                 }, 
             ]

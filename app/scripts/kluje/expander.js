@@ -49,7 +49,7 @@ function(evaluator, _, macros, symbols, types, utils) {
                 utils.require(x, symbols.isSym(x[1]), 'can set! only a symbol');
                 return [sym['set!'], x[1], expand(x[2])]
             },
-            'define': function(x) {
+            'def': function(x) {
                 utils.require(x, utils.length(x) >= 3)
                 var def = x[0];
                 var v = x[1];
@@ -57,13 +57,13 @@ function(evaluator, _, macros, symbols, types, utils) {
                     var body = x.slice(2);
                     var fname = v[0];
                     var args = new types.Vector(_.rest(v)); //  => (define f (fn [args] body))
-                    return expand([sym.define, fname, [sym.fn, args].concat(body)])
+                    return expand([sym.def, fname, [sym.fn, args].concat(body)])
                 } 
                 else {
                     utils.require(x, utils.length(x) == 3) // (define non-var/list exp) => Error
                     utils.require(x, symbols.isSym(v), 'can define only a symbol')
                     var exp = expand(x[2])
-                    return [sym.define, v, exp]
+                    return [sym.def, v, exp]
                 }
             },
             'do': function(x, toplevel) {
@@ -100,7 +100,7 @@ function(evaluator, _, macros, symbols, types, utils) {
                 var f = [sym.fn].concat(x.slice(2));
                 var proc = evaluator.evaluate(expandFn(f));
                 utils.require(x, _.isfunction(proc), 'macro must be a procedure');
-                return [sym.define, name, proc]
+                return [sym.def, name, proc]
             }
         }
     }

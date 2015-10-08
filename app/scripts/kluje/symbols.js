@@ -19,7 +19,7 @@ jex.service('symbols', [], function() {
     }
     
     var a = [
-        'quote', 'set!', 'define', 'do', 'syntaxquote', 'unquote', 
+        'quote', 'set!', 'def', 'do', 'syntaxquote', 'unquote', 
         'unquotesplice', 'autogensym', 'append', 'cons', 'let', 'fn'
     ]
     a.forEach(function(s) {
