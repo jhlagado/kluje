@@ -2,6 +2,8 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
+                {test:'(defn f1 ([] (f1 1) ) ([x] (+ x x)))', expect:undefined },
+                {test:'(f1)', expect:2 },
                 {test:'(defmacro m2 ([] `(m2 1) ) ([x] `(+ ~x ~x)))', expect:undefined},            
                 {test:'(defmacro m1 [x] `(+ ~x ~x))', expect:undefined},            
                 {test:'(m1 1)', expect:2},            
