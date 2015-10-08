@@ -1,11 +1,12 @@
 'use strict';
 
-jex.service('evaluator', ['environ','funcs', 'output', 'symbols', 'types', 'utils'], 
+jex.service('evaluator', ['environ', 'funcs', 'output', 'symbols', 'types', 'utils'], 
 function(environ, _, output, symbols, types, utils) {
     
     var sym = symbols.sym;
-    var globalEnv = environ.create({}, null);
+    var globalEnv, special;
     
+    initSpecial();
     initGlobals();
     
     return {
@@ -26,59 +27,17 @@ function(environ, _, output, symbols, types, utils) {
                 return environ.get(env, x);
             else if (!types.isnonemptylist(x)) // constant literal
                 return x
-            
-            else if (x[0] == 'quote') // (quote exp)
-                return x[1];
-            else if (x[0] == 'keyword') // (keyword exp)
-                return new types.Keyword(x[1]);
-            else if (x[0] == 'if') // (if test conseq alt)
-                x = evaluate(x[1], env) ? x[2] : x[3];
-            else if (x[0] == 'set!') { // (set! var exp)
-                var v = x[1];
-                environ.set(env, v, evaluate(x[2], env));
-                return;
-            } 
-            else if (x[0] == 'define') { // (define var exp)
-                var v = x[1];
-                environ.define(env, v, evaluate(x[2], env));
-                return;
-            } 
-            else if (x[0] == 'fn') { // (fn [arg1 arg2...] exp)
-                var sigs = x[1];
-                var f = function() {
-                    var numargs = arguments.length;
-                    var sig = sigs.reduce(function(acc, item) {
-                        if (!acc && item.variadic)
-                            acc = item;
-                        else if (numargs == item.vars.length) {
-                            if (item.variadic) {
-                                if (acc.variadic && item.vars.length > acc.vars.length)
-                                    acc = item;
-                            } 
-                            else {
-                                acc = item;
-                            }
-                        }
-                        return acc;
-                    }, null);
-                    
-                    if (!sig)
-                        throw new types.RuntimeError(_.isstring(x) + 'no matching argument signature found')
-                    
-                    var dict = utils.destructure(sig.vars, utils.argarray(arguments), sig.variadic);
-                    return evaluate(sig.exp, environ.create(dict, env));
-                
-                }
-                return f;
-            } 
-            else if (x[0] == 'do') { // (do exp+)
-                x.slice(1, -1).forEach(function(exp) {
-                    evaluate(exp, env)
-                });
-                x = x.slice(-1)[0];
-            } 
-            else if (types.isvector(x)) {
+            else if (types.isvector(x))
                 return x;
+            
+            if (x[0] in special) { //special form
+                var ret = special[x[0]](x, env);
+                if (x[0] == 'do' || x[0] == 'if') {
+                    x = ret;
+                } 
+                else {
+                    return ret;
+                }
             } 
             else { // (f exp*)
                 var f = evaluate(x[0], env);
@@ -93,9 +52,70 @@ function(environ, _, output, symbols, types, utils) {
             }
         }
     }
+    function initSpecial() {
+        special = {
+            'quote': function(x, env) { // (quote exp)
+                return x[1];
+            },
+            'set!': function(x, env) { // (set! var exp)
+                var v = x[1];
+                environ.set(env, v, evaluate(x[2], env));
+                return;
+            },
+            'define': function(x, env) { // (define var exp)
+                var v = x[1];
+                environ.define(env, v, evaluate(x[2], env));
+                return;
+            },
+            'fn': function(x, env) { // (fn [arg1 arg2...] exp)
+                var sigs = x[1];
+                return createFunc(sigs, env);
+                return f;
+            },
+            //tail recursive (replace current expression with result)
+            'if': function(x, env) { // (if test conseq alt)
+                return evaluate(x[1], env) ? x[2] : x[3];
+            },
+            //tail recursive (replace current expression with result)
+            'do': function(x, env) { // (do exp+)
+                x.slice(1, -1).forEach(function(exp) {
+                    evaluate(exp, env)
+                });
+                return x.slice(-1)[0];
+            }
+        }
+    }
+    
+    function createFunc(sigs, env) {
+        return function() {
+            var numargs = arguments.length;
+            var sig = sigs.reduce(function(acc, item) {
+                if (!acc && item.variadic)
+                    acc = item;
+                else if (numargs == item.vars.length) {
+                    if (item.variadic) {
+                        if (acc.variadic && item.vars.length > acc.vars.length)
+                            acc = item;
+                    } 
+                    else {
+                        acc = item;
+                    }
+                }
+                return acc;
+            }, null);
+            
+            if (!sig)
+                throw new types.RuntimeError('no matching argument signature found')
+            
+            var dict = utils.destructure(sig.vars, utils.argarray(arguments), sig.variadic);
+            return evaluate(sig.exp, environ.create(dict, env));
+        
+        }
+    }
     
     function initGlobals() {
         
+        globalEnv = environ.create({}, null);
         var basics = {
             
             '+': function(a, b) {
@@ -184,6 +204,9 @@ function(environ, _, output, symbols, types, utils) {
             'resolve': function(a) {
                 return resolve(a)
             },
+            'keyword': function(a) {
+                return new types.Keyword(a)
+            },
         }
         
         var math = _.pick(Math, ['abs', 'acos', 'asin', 'atan', 'atan2', 
@@ -213,5 +236,5 @@ function(environ, _, output, symbols, types, utils) {
                 throw w;
         }
     }
-    
+
 });

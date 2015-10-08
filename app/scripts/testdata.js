@@ -2,10 +2,14 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
+                {test:'(defmacro m2 ([] `(m2 1) ) ([x] `(+ ~x ~x)))', expect:undefined},            
+                {test:'(defmacro m1 [x] `(+ ~x ~x))', expect:undefined},            
+                {test:'(m1 1)', expect:2},            
+                {test: '(defmacro unless [& args] `(if (not ~(first args)) (do ~@(rest args)))) ; test `', expect:undefined},
+
                 {test: '`~@L', expect:expectSyntaxError},
                 {test: '(or true false)',expect: true}, 
                 {test: '(and true false)',expect: false}, 
-                {test: '(define-macro unless (fn [& args] `(if (not ~(first args)) (do ~@(rest args))))) ; test `', expect:undefined},
                 {
                     test: '(let [x 1] x)',
                     expect: 1,
@@ -34,15 +38,15 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                     expect: [1,2,3],
                 }, 
                 {
-                    test: '((fn (([a] a) ([a b] (+ a b) 100 ))) 1 2)', 
+                    test: '((fn ([a] a) ([a b] (+ a b) 100 )) 1 2)', 
                     expect: 100,
                 }, 
                 {
-                    test: '((fn (([a] a) ([a b] (+ a b)))) 1 2)', 
+                    test: '((fn ([a] a) ([a b] (+ a b))) 1 2)', 
                     expect: 3,
                 }, 
                 {
-                    test: '((fn (([a] a) ([a b] (+ a b)))) 1)', 
+                    test: '((fn ([a] a) ([a b] (+ a b))) 1)', 
                     expect: 1,
                 }, 
                 {
@@ -109,7 +113,7 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                     }
                 }, 
                 {
-                    test: "(keyword xyz)",
+                    test: "(keyword 'xyz)",
                     expect: function(data, result){
                         return types.iskeyword(result) && result == 'xyz';
                     }
@@ -207,7 +211,6 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(if 1 2 3 4)',expect:expectSyntaxError}, 
                 {test: '(fn 3 3)',expect:expectSyntaxError}, 
                 {test: '(fn [x])',expect:expectSyntaxError}, 
-                {test: '(if (= 1 2) (define-macro a \'a) (define-macro a \'b))',expect:expectSyntaxError}, 
                 {test: '(define (twice x) (* 2 x))', expect:undefined}, 
                 {test: '(twice 2)', expect:4},
                 {test: '(twice 2 2)', expect:expectRuntimeError},

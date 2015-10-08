@@ -75,12 +75,13 @@ function(evaluator, _, macros, symbols, types, utils) {
         } 
         else if (x[0] == 'defmacro') {
             utils.require(x, toplevel, 'defmacro only allowed at top level');
-            utils.require(x, utils.length(x) == 3) // (defmacro v proc)
-            var v = x[1];
-            utils.require(x, symbols.isSym(v), 'can define only a symbol')
-            var proc = evaluate(expand(x[2]));
+            utils.require(x, utils.length(x) >= 4) // (defmacro v proc)
+            var name = x[1];
+            utils.require(x, symbols.isSym(name), 'can define only a symbol')
+            var f = [sym.fn].concat(x.slice(2));
+            var proc = evaluator.evaluate(expandFn(f));
             utils.require(x, _.isfunction(proc), 'macro must be a procedure');
-            macros.define(v, proc);
+            macros.define(name, proc);
             return;
         } 
         else if (symbols.isSym(x[0]) && (macros.isMacro(x[0]))) { // => macroexpand if m isa macro
@@ -101,7 +102,7 @@ function(evaluator, _, macros, symbols, types, utils) {
         } 
         else {
             utils.require(x, utils.length(x) >= 2);
-            list = x[1];
+            list = _.rest(x);
         }
         var sigs = list.map(function(item) {
             var vars = item[0];

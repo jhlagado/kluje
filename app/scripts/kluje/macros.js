@@ -53,7 +53,7 @@ function(evaluator, expander, _, parser, symbols, types, utils) {
     function _let() {
         var args = utils.argarray(arguments);
         var x = _.cons(sym.let, args);
-        utils.require(x, utils.length(args) > 1);
+        utils.require(x, args.length > 1);
         var bindings = _.partition(2, args[0]);
         var body = _.rest(args);
         utils.require(x, utils.every(bindings.map(function(b) {

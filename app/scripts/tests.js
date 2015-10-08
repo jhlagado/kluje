@@ -19,14 +19,17 @@ function(_, kluje, output, testdata, types, utils) {
             }
         }
         
-        $scope.results = testdata.tests.map(function(data) {
+        console.time && console.time('total');
+        $scope.results = testdata.tests.map(function(data, index) {
             
             output.out.clear();
             
             var result, error;
             try {
-                console.log(data.test);
+                //                 console.log(data.test);
+//                 console.time && console.time('test ' + index);
                 result = kluje.run(data.test);
+//                 console.timeEnd && console.timeEnd('test ' + index);
             } 
             catch (e) {
                 error = e;
@@ -48,6 +51,7 @@ function(_, kluje, output, testdata, types, utils) {
             }
             return line;
         });
+        console.timeEnd && console.timeEnd('total');
         
         $scope.fails = $scope.results.reduce(function(acc, item) {
             if (!item.passed)

@@ -22,6 +22,8 @@ function(funcs, symbols, types, utils) {
             while (true) {
                 if (line == undefined)
                     return EOF;
+                if (!line.length)
+                    return EOF;
                 // see https://regex101.com/#javascript
                 // var regex = /\s*(,@|[('`,)]|'(?:[\\].|[^\\'])*'|;.*|[^\s(''`,;)]*)(.*)/g;
                 

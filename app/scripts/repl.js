@@ -13,7 +13,7 @@ jex.use(['kluje','types'], function(kluje,types) {
                 var result = kluje.run($scope.command);
             } 
             catch (e) {
-                var error = e.msg;
+                var error = e.message;
             }
             
             $scope.lines.push({
