@@ -85,15 +85,18 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         if (_.isempty(array)) {
             return [];
         }
-        var length = 0;
+        var length = 0; //filter: allow only colls
         array = array.reduce(function(acc, item) {
             if (_.iscoll(item))
                 acc.push(item);
             return acc;
         }, []);
+        //assert array of arrays
+        //find the longest child array
         var length = array.reduce(function(acc, item) {
             return Math.max(item.length, length);
         }, 0);
+        //result has as many entries as longest child array
         var result = Array(length);
         var index = -1;
         while (++index < length) {

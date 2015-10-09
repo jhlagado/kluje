@@ -2,6 +2,21 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
+//                 {test:'(lett [x 1 y x] y)', expect:1 },
+//                 {
+//                     test: '((fn [a] a) 1)', 
+//                     expect: 1,
+//                 }, 
+                
+                {test:'(let [x 1 y x] y)', expect:1 },
+                {test:'(let [x 1 y (+ x 1)] y)', expect:2 },
+                {test:'(let [[x y] [1 2]] (+ x y))', expect:3 },
+                {test:'(let [[x y & others] [1 2 3 4]] others)', expect:[3,4] },
+                {test:'(let [[x y & others] [1 2 3 4] z (first others)] z)', expect:3 },
+                {test:'(let [x 1 y (+ x 1)] y)', expect:2 },
+                {test:'(defn fx ([x] (println x) (println x)) ([x y] (fx (+ x y))))', expect:undefined },
+                {test:'(fx 100)', expect:undefined },
+                {test:'(fx 100 10)', expect:undefined },
                 {test:'(defn f1 ([] (f1 1) ) ([x] (+ x x)))', expect:undefined },
                 {test:'(f1)', expect:2 },
                 {test:'(defmacro m2 ([] `(m2 1) ) ([x] `(+ ~x ~x)))', expect:undefined},            
@@ -237,25 +252,24 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test:'(a1 10)', expect:120},
 
                 {test:
-                '(def (newton guess function derivative epsilon)\n' +
+                '(defn newton [guess function derivative epsilon] \n' +
                     '(def guess2 (- guess (/ (function guess) (derivative guess))))\n'+
                     '(if (< (abs (- guess guess2)) epsilon) guess2 \n'+
                     '    (newton guess2 function derivative epsilon)))', expect:undefined},
                 {test:
-                '(def (square-root a)\n' +
-                     '(newton 1 (fn [x] (- (* x x) a)) (fn [x] (* 2 x)) 1e-8))', 
+                '(defn square-root [a] (newton 1 (fn [x] (- (* x x) a)) (fn [x] (* 2 x)) 1e-8))', 
                      expect:undefined},
                 {test: '(> (square-root 200.) 14.14213)', expect:true},
                 {test: '(< (square-root 200.) 14.14215)', expect:true},
                 {test: '(= (square-root 200.) (sqrt 200.))', expect:true},
                 {test:
-                '(def (sum-squares-range start end)\n' +
-                '     (def (sumsq-acc start end acc)\n' +
-                '        (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc))))\n' +
+                '(defn sum-squares-range [start end]            \n' +
+                '     (def sumsq-acc (fn [start end acc]        \n' +
+                '        (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc)))))\n' +
                 '     (sumsq-acc start end 0))', expect:undefined},
                 {test: '(sum-squares-range 1 3000)', expect:9004500500}, // Tests tail recursion
 
-    //             {test: "(1 2 3)",expect: expectRuntimeError}, //doesnt clean up env?
+                 {test: "(1 2 3)",expect: expectRuntimeError}, //doesnt clean up env?
 
 
 

@@ -20,7 +20,7 @@ jex.service('symbols', [], function() {
     
     var a = [
         'quote', 'set!', 'def', 'do', 'syntaxquote', 'unquote', 
-        'unquotesplice', 'autogensym', 'append', 'cons', 'let', 'fn'
+        'unquotesplice', 'autogensym', 'append', 'cons', 'let', 'fn', 'letproc',
     ]
     a.forEach(function(s) {
         createSym(s);

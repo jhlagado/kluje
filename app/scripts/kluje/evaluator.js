@@ -82,6 +82,31 @@ function(environ, _, output, symbols, types, utils) {
                     evaluate(exp, env)
                 });
                 return x.slice(-1)[0];
+            },
+            'letproc': function(x, env) {
+                var env1 = environ.create({}, env)
+                var vec = _.partition(2, x[1]);
+                vec.forEach(function(item) {
+                    if (symbols.isSym(item[0])) {
+                        environ.define(env1, item[0], evaluate(item[1], env1));
+                    } 
+                    else if (types.isvector(item[0])) {
+                        if (!types.isvector(item[1])) {
+                            throw new RuntimeError('Cannot destructure assign ' 
+                            + types.tostring(item[0]) + ' with value ' + types.tostring(item[1]));
+                        }
+                        //TODO normalize for variadic
+                        var vals = item[1].map(function(val){return evaluate(val, env1)});
+                        var dict = utils.destructure(item[0], vals, false);
+                        environ.assign(env1, dict);
+                    } 
+                    else {
+                        throw new RuntimeError('Expected a symbol or a vector, got ' + tostring(item[0]));
+                    }
+                });
+                
+                var body = x[2];
+                return evaluate(body, env1);
             }
         }
     }
@@ -190,6 +215,9 @@ function(environ, _, output, symbols, types, utils) {
                 return evaluate(x, outputs.out);
             },
             'display': function(x) {
+                output.out.log(_.isstring(x) ? x : types.tostring(x));
+            },
+            'println': function(x) {
                 output.out.log(_.isstring(x) ? x : types.tostring(x));
             },
             'call/cc': callcc,
