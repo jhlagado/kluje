@@ -91,13 +91,20 @@ function(environ, _, output, symbols, types, utils) {
                         environ.define(env1, item[0], evaluate(item[1], env1));
                     } 
                     else if (types.isvector(item[0])) {
-                        if (!types.isvector(item[1])) {
-                            throw new RuntimeError('Cannot destructure assign ' 
-                            + types.tostring(item[0]) + ' with value ' + types.tostring(item[1]));
+                        var vals = item[1].map(function(val) {
+                            return evaluate(val, env1)
+                        });
+                        var vars, variadic;
+                        if (types.isvector(item[0])) {
+                            var vv = utils.getVariadicVars(item[0]);
+                            vars = vv.vars, 
+                            variadic = vv.variadic;
+                        } 
+                        else {
+                            vars = item[0];
+                            variadic = false;
                         }
-                        //TODO normalize for variadic
-                        var vals = item[1].map(function(val){return evaluate(val, env1)});
-                        var dict = utils.destructure(item[0], vals, false);
+                        var dict = utils.destructure(vars, vals, variadic);
                         environ.assign(env1, dict);
                     } 
                     else {

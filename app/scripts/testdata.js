@@ -2,12 +2,8 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
-//                 {test:'(lett [x 1 y x] y)', expect:1 },
-//                 {
-//                     test: '((fn [a] a) 1)', 
-//                     expect: 1,
-//                 }, 
-                
+                {test:'((fn [& x] x) 1 2)', expect:[1,2]},
+                {test:'((fn [x & y] y) 1 2 3)', expect:[2, 3]},
                 {test:'(let [x 1 y x] y)', expect:1 },
                 {test:'(let [x 1 y (+ x 1)] y)', expect:2 },
                 {test:'(let [[x y] [1 2]] (+ x y))', expect:3 },

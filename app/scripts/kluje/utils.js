@@ -9,6 +9,7 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
         destructure: destructure,
         each: each,
         every: every,
+        getVariadicVars: getVariadicVars,
         length: length,
         require: require,
         startswith: startswith,
@@ -62,6 +63,21 @@ jex.service('utils', ['funcs', 'types'], function(_, types) {
             }
         if (!_.isnull(x) && x.every) {
             return x.every(f);
+        }
+    }
+    
+    function getVariadicVars(vars) {
+        if (vars.slice(-2, -1)[0] == '&') {
+            vars.splice(-2, 1);
+            return {
+                variadic: true,
+                vars: vars,
+            }
+        } 
+        else {
+            return {
+                vars: vars,
+            }
         }
     }
     

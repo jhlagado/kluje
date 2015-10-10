@@ -22,7 +22,7 @@ function(evaluator, _, macros, symbols, types, utils) {
         utils.require(x, !_.isempty(x)) // () => Error 
         if (x[0] in special) {
             return special[x[0]](x, toplevel);
-        }
+        } 
         else if (symbols.isSym(x[0]) && (macros.isMacro(x[0]))) { // => macroexpand if m isa macro
             return expand(macros.load(x[0]).apply(null, _.rest(x)), toplevel) // (m arg...) 
         } 
@@ -125,18 +125,27 @@ function(evaluator, _, macros, symbols, types, utils) {
             
             var body = item.slice(1);
             var exp = expand(utils.length(body) == 1 ? body[0] : _.cons(sym.do, body));
-            var ret = vars.slice(-2, -1)[0] == '&' ? {
-                variadic: true,
-                //throw away splice return and return altered vars instead
-                vars: (vars.splice(-2, 1), vars),
-                exp: exp,
-            } : {
-                vars: vars,
-                exp: exp,
-            }
+
+            var ret = utils.getVariadicVars(new types.Vector(vars));
+            ret.exp = exp;
             return ret;
         });
         return [x[0], sigs]
+    }
+    
+    function getVariadicVars(vars) {
+        if (vars.slice(-2, -1)[0] == '&') {
+            var vars1 = vars.splice(-2, 1);
+            return {
+                variadic: true,
+                vars: vars1,
+            }
+        } 
+        else {
+            return {
+                vars: vars,
+            }
+        }
     }
     
     function expandSyntaxQuote(x, gensyms) {
