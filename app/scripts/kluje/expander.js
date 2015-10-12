@@ -76,7 +76,28 @@ function(evaluator, _, macros, symbols, types, utils) {
                 }
             },
             'fn': function(x) { // (fn (x) e1 e2) 
-                return expandFn(x)
+                utils.require(x[1], types.islist(x[1]) || types.isvector(x[1]), 'expected list or vector')
+                var list;
+                if (types.isvector(x[1])) {
+                    utils.require(x, utils.length(x) >= 3);
+                    list = [_.rest(x)]
+                } 
+                else {
+                    utils.require(x, utils.length(x) >= 2);
+                    list = _.rest(x);
+                }
+                var list1 = list.map(function(item) {
+                    var vars = item[0];
+                    utils.require(x, utils.every(vars, function(v) {
+                        return symbols.isSym(v);
+                    }), 'expected symbols in args list');
+                    
+                    var body = item.slice(1);
+                    var exp = expand(utils.length(body) == 1 ? body[0] : _.cons(sym.do, body));
+                    
+                    return [vars, exp];
+                });
+                return [x[0]].concat(list1);
             },
             'syntaxquote': function(x) { // `x => expandSyntaxQuote(x)
                 utils.require(x, utils.length(x) == 2)
@@ -88,7 +109,7 @@ function(evaluator, _, macros, symbols, types, utils) {
                 var name = x[1];
                 utils.require(x, symbols.isSym(name), 'can define only a symbol')
                 var f = [sym.fn].concat(x.slice(2));
-                var proc = evaluator.evaluate(expandFn(f));
+                var proc = evaluator.evaluate(expand(f));
                 utils.require(x, _.isfunction(proc), 'macro must be a procedure');
                 macros.define(name, proc);
                 return;
@@ -98,39 +119,11 @@ function(evaluator, _, macros, symbols, types, utils) {
                 var name = x[1];
                 utils.require(x, symbols.isSym(name), 'can define only a symbol')
                 var f = [sym.fn].concat(x.slice(2));
-                var proc = evaluator.evaluate(expandFn(f));
+                var proc = evaluator.evaluate(expand(f));
                 utils.require(x, _.isfunction(proc), 'macro must be a procedure');
                 return [sym.def, name, proc]
             }
         }
-    }
-    
-    function expandFn(x) {
-        
-        var list;
-        utils.require(x[1], types.islist(x[1]) || types.isvector(x[1]), 'expected list or vector')
-        if (types.isvector(x[1])) {
-            utils.require(x, utils.length(x) >= 3);
-            list = [_.rest(x)]
-        } 
-        else {
-            utils.require(x, utils.length(x) >= 2);
-            list = _.rest(x);
-        }
-        var sigs = list.map(function(item) {
-            var vars = item[0];
-            utils.require(x, utils.every(vars, function(v) {
-                return symbols.isSym(v);
-            }), 'expected symbols in args list');
-            
-            var body = item.slice(1);
-            var exp = expand(utils.length(body) == 1 ? body[0] : _.cons(sym.do, body));
-
-            var ret = utils.getVariadicVars(new types.Vector(vars));
-            ret.exp = exp;
-            return ret;
-        });
-        return [x[0], sigs]
     }
     
     function getVariadicVars(vars) {

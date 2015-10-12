@@ -68,9 +68,39 @@ function(environ, _, output, symbols, types, utils) {
                 return;
             },
             'fn': function(x, env) { // (fn [arg1 arg2...] exp)
-                var sigs = x[1];
-                return createFunc(sigs, env);
-                return f;
+                var list = _.rest(x);
+                var sigs = list.map(function(item) {
+                    var ret = utils.getVariadicVars(new types.Vector(item[0]));
+                    ret.exp = item[1];
+                    return ret;
+                });
+                return function() {
+                    var numargs = arguments.length;
+                    var sig = sigs.reduce(function(acc, item) {
+                        if (item.vars == null) {
+                            var x;
+                        }
+                        if (!acc && item.variadic)
+                            acc = item;
+                        else if (numargs == item.vars.length) {
+                            if (item.variadic) {
+                                if (acc.variadic && item.vars.length > acc.vars.length)
+                                    acc = item;
+                            } 
+                            else {
+                                acc = item;
+                            }
+                        }
+                        return acc;
+                    }, null);
+                    
+                    if (!sig)
+                        throw new types.RuntimeError('no matching argument signature found')
+                    
+                    var dict = utils.destructure(sig.vars, utils.argarray(arguments), sig.variadic);
+                    return evaluate(sig.exp, environ.create(dict, env));
+                
+                }
             },
             //tail recursive (replace current expression with result)
             'if': function(x, env) { // (if test conseq alt)
@@ -115,33 +145,6 @@ function(environ, _, output, symbols, types, utils) {
                 var body = x[2];
                 return evaluate(body, env1);
             }
-        }
-    }
-    
-    function createFunc(sigs, env) {
-        return function() {
-            var numargs = arguments.length;
-            var sig = sigs.reduce(function(acc, item) {
-                if (!acc && item.variadic)
-                    acc = item;
-                else if (numargs == item.vars.length) {
-                    if (item.variadic) {
-                        if (acc.variadic && item.vars.length > acc.vars.length)
-                            acc = item;
-                    } 
-                    else {
-                        acc = item;
-                    }
-                }
-                return acc;
-            }, null);
-            
-            if (!sig)
-                throw new types.RuntimeError('no matching argument signature found')
-            
-            var dict = utils.destructure(sig.vars, utils.argarray(arguments), sig.variadic);
-            return evaluate(sig.exp, environ.create(dict, env));
-        
         }
     }
     
