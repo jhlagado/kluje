@@ -27,9 +27,9 @@ function(_, kluje, output, testdata, types, utils) {
             var result, error;
             try {
                 //                 console.log(data.test);
-//                 console.time && console.time('test ' + index);
+                //                 console.time && console.time('test ' + index);
                 result = kluje.run(data.test);
-//                 console.timeEnd && console.timeEnd('test ' + index);
+                //                 console.timeEnd && console.timeEnd('test ' + index);
             } 
             catch (e) {
                 error = e;
@@ -50,17 +50,19 @@ function(_, kluje, output, testdata, types, utils) {
                 line.expect = types.tostring(data.expect);
             }
             return line;
-        });
+        }
+        );
         console.timeEnd && console.timeEnd('total');
         
         $scope.fails = $scope.results.reduce(function(acc, item) {
             if (!item.passed)
                 acc++;
             return acc;
-        }, 0);
+        }
+        , 0);
     
-    })
+    }
+    )
 
-});
-
-
+}
+);

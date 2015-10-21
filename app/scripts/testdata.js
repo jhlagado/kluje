@@ -2,6 +2,15 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
     
         return {
             tests: [
+//                 {test: '(defn account [bal] (let [] (fn [amt] (set! bal (+ bal amt)) bal)))', expect:undefined},
+
+
+                {test: '(defn account [bal] (fn [amt] (set! bal (+ bal amt)) bal))', expect:undefined},
+                {test: '(def a1 (account 100))', expect:undefined},
+                {test: '(a1 0)', expect:100}, 
+                {test: '(a1 10)', expect:110}, 
+                {test: '(a1 10)', expect:120},   
+
                 {test:'((fn [x] x) 100)', expect: 100},
 
                 {test:
@@ -36,12 +45,6 @@ jex.service('testdata', ['funcs', 'types','symbols'], function(_, types, symbols
                 {test: '(< (square-root 200.) 14.14215)', expect:true},
                 {test: '(= (square-root 200.) (sqrt 200.))', expect:true},
                 
-                {test: '(defn account [bal] (fn [amt] (set! bal (+ bal amt)) bal))', expect:undefined},
-                {test: '(def a1 (account 100))', expect:undefined},
-                {test: '(a1 0)', expect:100}, 
-                {test: '(a1 10)', expect:110}, 
-                {test: '(a1 10)', expect:120},   
-
                 {test: '((fn [& x] x) 1 2)', expect:[1,2]},
                 {test: '((fn [x & y] y) 1 2 3)', expect:[2, 3]},
                 {test: '(let [x 1 y x] y)', expect:1 },

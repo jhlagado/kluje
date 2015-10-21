@@ -64,7 +64,7 @@ function(environ, _, output, symbols, types, utils) {
             },
             'def': function(x, env) { // (define var exp)
                 var v = x[1];
-                environ.define(env, v, evaluate(x[2], env));
+                environ.define(globalEnv, v, evaluate(x[2], env));
                 return;
             },
             'fn': function(x, env) { // (fn [arg1 arg2...] exp)
@@ -152,6 +152,9 @@ function(environ, _, output, symbols, types, utils) {
         
         globalEnv = environ.create({}, null);
         var basics = {
+            //cast
+            //apply
+            //operators need to work on any num of params
             
             '+': function(a, b) {
                 return a + b;
